@@ -1,0 +1,7 @@
+scroll.img
+objdump.txt
+kernel
+mbr
+loader
+lib/
+bin/
