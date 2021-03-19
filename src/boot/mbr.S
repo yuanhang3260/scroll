@@ -1,13 +1,15 @@
 ; mbr
 ;------------------------------------------------------------
 %include "src/boot/boot.inc"
-SECTION MBR vstart=0x7c00
+SECTION mbr vstart=0x7c00
 
 mbr_entry:
   call init_segments
   call clear_screen
-  call print_hello
-  jmp $
+  call load_loader_img
+
+  ; jump to loader
+  jmp LOADER_BASE_ADDR
 
 init_segments:
   mov ax, cs
@@ -38,23 +40,12 @@ clear_screen:
   int 0x10
   ret
 
-print_hello:
-  ; print position
-  mov dx, 0x0
-
-  ; print message
-  mov ax, message
-  mov bp, ax
-  mov cx, 9
-  mov ax, 0x1301
-  mov bx, 0x7
-  int 0x10
-
 load_loader_img:
   mov eax, LOADER_START_SECTOR  ; 0x02
   mov bx, LOADER_BASE_ADDR  ; 0x0900
   mov cx, 0x01
   call rd_disk_m_16
+  ret
 
 rd_disk_m_16:
   mov esi, eax
@@ -64,7 +55,50 @@ rd_disk_m_16:
   mov al, cl
   out dx, al
 
+  mov eax, esi
 
-message db "hello mbr"
+  mov dx,0x1f3
+  out dx,al
+  mov cl,8
+  shr eax,cl
+  mov dx,0x1f4
+  out dx,al
+
+  shr eax,cl
+  mov dx,0x1f5
+  out dx,al
+  shr eax,cl
+  and al,0x0f
+
+  or al,0xe0
+  mov dx,0x1f6
+  out dx,al
+
+  mov dx,0x1f7
+  mov al,0x20
+  out dx,al
+
+.not_ready:
+  nop
+  in al,dx
+  and al,0x88
+  cmp al,0x08
+  jnz .not_ready
+
+  mov ax, di
+  mov dx, 256
+  mul dx
+  mov cx, ax
+
+  mov dx, 0x1f0
+
+.go_on_read:
+  in ax,dx
+  mov [bx],ax
+  add bx,2
+  loop .go_on_read
+  ret
+
+
 times 510-($-$$) db 0
 db 0x55, 0xaa

@@ -17,13 +17,18 @@ ASFLAGS=-felf
 
 all: image
 
-image: mbr
+image: mbr loader
 	rm -rf scroll.img && bximage -hd -mode="flat" -size=1 -q scroll.img 1>/dev/null
 	dd if=$(BIN_DIR)/mbr of=scroll.img bs=512 count=1 conv=notrunc
+	dd if=$(BIN_DIR)/loader of=scroll.img bs=512 count=1 seek=2 conv=notrunc
 
 mbr: $(SRC_DIR)/boot/mbr.S
 	mkdir -p $(BIN_DIR)
 	nasm -o $(BIN_DIR)/mbr $<
+
+loader: $(SRC_DIR)/boot/loader.S
+	mkdir -p $(BIN_DIR)
+	nasm -o $(BIN_DIR)/loader $<
 
 loader: $(SRC_DIR)/boot/loader.S
 
