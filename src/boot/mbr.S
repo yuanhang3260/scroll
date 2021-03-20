@@ -42,7 +42,7 @@ clear_screen:
 
 load_loader_img:
   ; 28-bit LBA, so use 32-bit eax register
-  mov eax, LOADER_START_SECTOR  ; 0x02
+  mov eax, LOADER_START_SECTOR  ; 0x01
   mov bx, LOADER_BASE_ADDR  ; 0x0900
   mov cx, 0x01
   call read_disk
