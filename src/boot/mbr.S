@@ -5,7 +5,6 @@ SECTION mbr vstart=0x7c00
 
 mbr_entry:
   call init_segments
-  call clear_screen
   call load_loader_img
 
   ; jump to loader
@@ -24,20 +23,6 @@ init_segments:
   mov ax, [bx]
   mov [0x7b00], ax
   mov sp, 0x7b00
-  ret
-
-clear_screen:
-  mov byte ah, 0x06
-  mov byte al, 0x00
-  mov byte bh, 0x07
-  ; start (0, 0)
-  mov byte cl, 0x00
-  mov byte ch, 0x00
-  ; end: (dl, dh) = (x:79, y:24)
-  mov byte dl, 0x4f
-  mov byte dh, 0x18
-
-  int 0x10
   ret
 
 load_loader_img:
