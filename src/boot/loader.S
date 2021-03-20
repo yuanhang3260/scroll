@@ -1,5 +1,9 @@
 SECTION loader vstart=0x900
 
+loader_entry:
+  call print_hello
+  jmp $
+
 print_hello:
   ; position
   mov dx, 0x0

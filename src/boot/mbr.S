@@ -41,50 +41,60 @@ clear_screen:
   ret
 
 load_loader_img:
+  ; 28-bit LBA, so use 32-bit eax register
   mov eax, LOADER_START_SECTOR  ; 0x02
   mov bx, LOADER_BASE_ADDR  ; 0x0900
   mov cx, 0x01
-  call rd_disk_m_16
+  call read_disk
   ret
 
-rd_disk_m_16:
+read_disk:
   mov esi, eax
   mov di, cx
 
+  ; sector count
   mov dx, 0x01f2
   mov al, cl
   out dx, al
 
   mov eax, esi
 
-  mov dx,0x1f3
-  out dx,al
-  mov cl,8
-  shr eax,cl
-  mov dx,0x1f4
+  ; LBA low
+  mov dx, 0x1f3
+  out dx, al
+
+  ; LBA mid
+  shr eax, 8
+  mov dx, 0x1f4
+  out dx, al
+
+  ; LBA high
+  shr eax, 8
+  mov dx, 0x1f5
   out dx,al
 
-  shr eax,cl
-  mov dx,0x1f5
-  out dx,al
-  shr eax,cl
-  and al,0x0f
+  ; device reg: LBA[24:28]
+  shr eax, 8
+  and al, 0x0f
 
-  or al,0xe0
-  mov dx,0x1f6
-  out dx,al
+  or al, 0xe0  ; 0x1110, LBA mode
+  mov dx, 0x1f6
+  out dx, al
 
-  mov dx,0x1f7
-  mov al,0x20
-  out dx,al
+  ; command reg: 0x2 read, start reading
+  mov dx, 0x1f7
+  mov al, 0x20
+  out dx, al
 
 .not_ready:
   nop
-  in al,dx
-  and al,0x88
-  cmp al,0x08
+  in al, dx
+  and al, 0x88  ; bit 7 (busy), bit 3 (data ready)
+  cmp al, 0x08
   jnz .not_ready
 
+  ; di = cx = sector count
+  ; read 2 bytes time, so loop (sector count) * 512 / 2 times
   mov ax, di
   mov dx, 256
   mul dx
@@ -93,9 +103,9 @@ rd_disk_m_16:
   mov dx, 0x1f0
 
 .go_on_read:
-  in ax,dx
-  mov [bx],ax
-  add bx,2
+  in ax, dx
+  mov [bx], ax
+  add bx, 2
   loop .go_on_read
   ret
 
