@@ -20,7 +20,7 @@ all: image
 image: mbr loader
 	rm -rf scroll.img && bximage -hd -mode="flat" -size=1 -q scroll.img 1>/dev/null
 	dd if=$(BIN_DIR)/mbr of=scroll.img bs=512 count=1 seek=0 conv=notrunc
-	dd if=$(BIN_DIR)/loader of=scroll.img bs=512 count=1 seek=1 conv=notrunc
+	dd if=$(BIN_DIR)/loader of=scroll.img bs=512 count=8 seek=1 conv=notrunc
 
 mbr: $(SRC_DIR)/boot/mbr.S
 	mkdir -p $(BIN_DIR)

@@ -1,7 +1,7 @@
 ; mbr
 ;------------------------------------------------------------
 %include "src/boot/boot.inc"
-SECTION mbr vstart=0x7c00
+SECTION mbr vstart=MBR_BASE_ADDR
 
 mbr_entry:
   call init_segments
@@ -28,8 +28,8 @@ init_segments:
 load_loader_img:
   ; 28-bit LBA, so use 32-bit eax register
   mov eax, LOADER_START_SECTOR  ; 0x01
-  mov bx, LOADER_BASE_ADDR  ; 0x0900
-  mov cx, 0x01
+  mov bx, LOADER_BASE_ADDR  ; 0x8000
+  mov cx, 0x08
   call read_disk
   ret
 
