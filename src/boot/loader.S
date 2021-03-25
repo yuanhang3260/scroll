@@ -57,11 +57,11 @@ clear_screen:
   int 0x10
   ret
 
+; args:
+;  - ax message
+;  - cx length
+;  - dx position
 print_message:
-  ; position
-  mov dx, 0x00
-
-  ; print message
   mov bp, ax
   mov ah, 0x13  ; int num
   mov al, 0x01
@@ -72,6 +72,7 @@ print_message:
 
 setup_protection_mode:
   mov ax, message1
+  mov dx, 0x00
   mov cx, message1_length
   call print_message
 
@@ -103,15 +104,37 @@ protection_mode_start:
   mov ax, SELECTOR_VIDEO
   mov gs, ax
 
-  ; let's test video memory - a green [OK] after message1
-  mov byte [gs:message1_length*2+0], '['
-  mov byte [gs:message1_length*2+2], 'O'
-  mov byte [gs:message1_length*2+3], 0010b
-  mov byte [gs:message1_length*2+4], 'K'
-  mov byte [gs:message1_length*2+5], 0010b
-  mov byte [gs:message1_length*2+6], ']'
+  mov eax, 0 + message1_length
+  call print_OK
+
+  call print_message_32
 
   ret
+
+; let's use stack to pass arguments
+print_message_32:
+  push ebp
+  mov ebp, esp
+
+    
+
+  pop ebp
+  ret
+
+; argument eax: start position to print
+print_OK:
+  ; let's test video memory - a green [OK] after message1
+  mov esi, eax
+  mov byte [gs:eax*2+0], '['
+  mov byte [gs:eax*2+2], 'O'
+  mov byte [gs:eax*2+3], 0010b
+  mov byte [gs:eax*2+4], 'K'
+  mov byte [gs:eax*2+5], 0010b
+  mov byte [gs:eax*2+6], ']'
+  ret
+
+move_cursor:
+
 
 setup_page:
   ; clear the memory space for page directory
@@ -121,7 +144,7 @@ setup_page:
   call clear_memory
 
   ; create page directory
-.create_pde: ; 创建 Page Directory Entry
+.create_pde:
   ; first pde
   mov eax, PAGE_DIR_TABLE_POS + 0x1000
   mov ebx, eax
@@ -134,7 +157,7 @@ setup_page:
   mov eax, PAGE_DIR_TABLE_POS
   mov [PAGE_DIR_TABLE_POS + 4092], eax
 
-  ; 创建内核其他页表的 PDE
+  ; create other kernel pde
   mov eax, PAGE_DIR_TABLE_POS
   add eax, 0x2000
   or eax, PG_US_U | PG_RW_W | PG_P
