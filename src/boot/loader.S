@@ -36,7 +36,7 @@ gdt_ptr:
   dw GDT_LIMIT
   dd GDT_BASE
 
-
+;*************************** 16-bits real mode ********************************;
 loader_start:
   call clear_screen
   call setup_protection_mode
@@ -61,7 +61,7 @@ clear_screen:
 ;  - ax message
 ;  - cx length
 ;  - dx position
-print_message:
+print_message_real_mode:
   mov bp, ax
   mov ah, 0x13  ; int num
   mov al, 0x01
@@ -74,7 +74,7 @@ setup_protection_mode:
   mov ax, message1
   mov dx, 0x00
   mov cx, message1_length
-  call print_message
+  call print_message_real_mode
 
   ; enable A20
   in al, 0x92
@@ -92,6 +92,8 @@ setup_protection_mode:
   ; refresh pipeline
   jmp dword SELECTOR_CODE:protection_mode_start
 
+
+;************************ 32-bits protection mode *****************************;
 [bits 32]
 protection_mode_start:
   ; set data segments
@@ -104,38 +106,120 @@ protection_mode_start:
   mov ax, SELECTOR_VIDEO
   mov gs, ax
 
-  mov eax, 0 + message1_length
+  ; set cursor
+  mov dword [cursor_row], 0
+  mov dword [cursor_col], message1_length
+
+  ; set protection mode OK :)
   call print_OK
 
-  call print_message_32
+  push 0
+  push 1
+  push message2
+  call print_message
+  sub esp, 12
 
+  jmp $
   ret
 
 ; let's use stack to pass arguments
-print_message_32:
+print_message:
   push ebp
   mov ebp, esp
+  push esi
+  push edi
+  push ebx
 
-    
+  mov esi, [ebp + 8]   ; arg 1: message ptr
+  mov edi, [ebp + 12]  ; arg 2: row
+  mov ebx, [ebp + 16]  ; arg 2: column
 
+  mov ecx, edi
+  shl ecx, 6
+  shl edi, 4
+  add ecx, edi  ; edi * 64 + edi * 16 = edi * 80
+  add ecx, ebx
+  shl ecx, 1
+  mov eax, 0
+.print_byte:
+  mov byte dl, [esi + eax]
+  cmp dl, 0
+  je  .print_end
+  mov byte [gs:ecx], dl
+  mov byte [gs:ecx+1], 0x7  ; white on black
+  add eax, 1
+  add ecx, 2
+  jmp .print_byte
+
+.print_end:
+  pop ebx
+  pop edi
+  pop esi
   pop ebp
   ret
 
+
 ; argument eax: start position to print
 print_OK:
+  push ebp
+  mov ebp, esp
+  push esi
+  push edi
+  push ebx
+
   ; let's test video memory - a green [OK] after message1
-  mov esi, eax
-  mov byte [gs:eax*2+0], '['
-  mov byte [gs:eax*2+2], 'O'
-  mov byte [gs:eax*2+3], 0010b
-  mov byte [gs:eax*2+4], 'K'
-  mov byte [gs:eax*2+5], 0010b
-  mov byte [gs:eax*2+6], ']'
+  call get_current_cursor_addr
+
+  mov byte [gs:(eax+0)], '['
+  mov byte [gs:(eax+2)], 'O'
+  mov byte [gs:(eax+3)], 0010b
+  mov byte [gs:(eax+4)], 'K'
+  mov byte [gs:(eax+5)], 0010b
+  mov byte [gs:(eax+6)], ']'
+
+  mov eax, [cursor_row]
+  mov dword ecx, [cursor_col]
+  add ecx, 4
+  mov dword [cursor_col], ecx
+  call move_cursor
+
+  pop ebx
+  pop edi
+  pop esi
+  pop ebp
+  ret
+
+get_current_cursor_addr:
+  mov ecx, [cursor_row]
+  mov edx, [cursor_col]
+  
+  mov eax, ecx
+  shl eax, 6
+  shl ecx, 4
+  add eax, ecx  ; ecx * 64 + ecx * 16 = row * 80
+  add eax, edx
+  shl eax, 1
+
   ret
 
 move_cursor:
+  call get_current_cursor_addr
+  shr eax, 1
+  mov ecx, eax
 
+  mov al, 14
+  out 0x3D4, al
+  mov al, ch
+  out 0x3D5, al
 
+  mov al, 15
+  out 0x3D4, al
+  mov al, cl
+  out 0x3D5, al
+
+  ret
+
+;****************************** setup paging **********************************;
 setup_page:
   ; clear the memory space for page directory
   mov eax, PAGE_DIR_TABLE_POS
@@ -187,8 +271,14 @@ clear_memory:
   loop clear_memory
   ret
 
+cursor_row: dd 0
+cursor_col: dd 0
 
 message1:
   db "setup protection mode ... "
 
 message1_length equ $ - message1
+
+message2:
+  db "hello print"
+  db 0
