@@ -215,7 +215,7 @@ move_cursor:
   mov al, 15
   out 0x3D4, al
   mov al, cl
-  out 0x3D5, al
+  out 0x3D5, ax
 
   ret
 
