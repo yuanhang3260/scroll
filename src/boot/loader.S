@@ -113,8 +113,7 @@ protection_mode_start:
   ; set protection mode OK :)
   call print_OK
 
-  push 0
-  push 1
+  call print_new_line
   push message2
   call print_message
   sub esp, 12
@@ -130,16 +129,12 @@ print_message:
   push edi
   push ebx
 
-  mov esi, [ebp + 8]   ; arg 1: message ptr
-  mov edi, [ebp + 12]  ; arg 2: row
-  mov ebx, [ebp + 16]  ; arg 2: column
+  mov esi, [ebp + 8]   ; arg: message ptr
+  mov edi, [cursor_row]
+  mov ebx, [cursor_col]
 
-  mov ecx, edi
-  shl ecx, 6
-  shl edi, 4
-  add ecx, edi  ; edi * 64 + edi * 16 = edi * 80
-  add ecx, ebx
-  shl ecx, 1
+  call get_current_cursor_addr
+  mov ecx, eax
   mov eax, 0
 .print_byte:
   mov byte dl, [esi + eax]
@@ -148,10 +143,15 @@ print_message:
   mov byte [gs:ecx], dl
   mov byte [gs:ecx+1], 0x7  ; white on black
   add eax, 1
+  add ebx, 1
   add ecx, 2
   jmp .print_byte
 
 .print_end:
+  mov eax, [cursor_row]
+  mov dword [cursor_col], ebx
+  call move_cursor
+
   pop ebx
   pop edi
   pop esi
@@ -161,12 +161,6 @@ print_message:
 
 ; argument eax: start position to print
 print_OK:
-  push ebp
-  mov ebp, esp
-  push esi
-  push edi
-  push ebx
-
   ; let's test video memory - a green [OK] after message1
   call get_current_cursor_addr
 
@@ -183,10 +177,14 @@ print_OK:
   mov dword [cursor_col], ecx
   call move_cursor
 
-  pop ebx
-  pop edi
-  pop esi
-  pop ebp
+  ret
+
+print_new_line:
+  mov eax, [cursor_row]
+  add eax, 1
+  mov dword [cursor_row], eax
+  mov dword [cursor_col], 0
+  call move_cursor
   ret
 
 get_current_cursor_addr:
@@ -208,14 +206,18 @@ move_cursor:
   mov ecx, eax
 
   mov al, 14
-  out 0x3D4, al
+  mov dx, 0x3D4
+  out dx, al
   mov al, ch
-  out 0x3D5, al
+  mov dx, 0x3D5
+  out dx, al
 
   mov al, 15
-  out 0x3D4, al
+  mov dx, 0x3D4
+  out dx, al
   mov al, cl
-  out 0x3D5, ax
+  mov dx, 0x3D5
+  out dx, al
 
   ret
 
@@ -280,5 +282,5 @@ message1:
 message1_length equ $ - message1
 
 message2:
-  db "hello print"
+  db "setup paging ..."
   db 0
