@@ -109,6 +109,7 @@ protection_mode_start:
   ; set cursor
   mov dword [cursor_row], 0
   mov dword [cursor_col], message1_length
+  call move_cursor
 
   ; set protection mode OK :)
   call print_OK
