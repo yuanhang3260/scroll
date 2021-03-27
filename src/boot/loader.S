@@ -107,8 +107,7 @@ protection_mode_start:
   mov gs, ax
 
   ; set cursor
-  mov dword [cursor_row], 0
-  mov dword [cursor_col], message1_length
+  push message1_length
   call move_cursor
 
   ; set protection mode OK :)
@@ -149,8 +148,7 @@ print_message:
   jmp .print_byte
 
 .print_end:
-  mov eax, [cursor_row]
-  mov dword [cursor_col], ebx
+  push eax
   call move_cursor
 
   pop ebx
@@ -172,10 +170,7 @@ print_OK:
   mov byte [gs:(eax+5)], 0010b
   mov byte [gs:(eax+6)], ']'
 
-  mov eax, [cursor_row]
-  mov dword ecx, [cursor_col]
-  add ecx, 4
-  mov dword [cursor_col], ecx
+  push 4
   call move_cursor
 
   ret
@@ -185,6 +180,7 @@ print_new_line:
   add eax, 1
   mov dword [cursor_row], eax
   mov dword [cursor_col], 0
+  push 0
   call move_cursor
   ret
 
@@ -202,9 +198,26 @@ get_current_cursor_addr:
   ret
 
 move_cursor:
+  push ebp
+  mov ebp, esp
+
+  mov eax, [ebp + 8]
+  mov ecx, [cursor_row]
+  mov edx, [cursor_col]
+  add edx, eax
+
+.start_new_row:
+  cmp edx, 80
+  jl  .do_move
+  inc ecx
+  sub edx, 80
+  jmp .start_new_row
+
+  mov [cursor_row], ecx
+  mov [cursor_col], edx
+.do_move:
   call get_current_cursor_addr
   shr eax, 1
-  mov ecx, eax
 
   mov al, 14
   mov dx, 0x3D4
@@ -220,6 +233,7 @@ move_cursor:
   mov dx, 0x3D5
   out dx, al
 
+  pop ebp
   ret
 
 ;****************************** setup paging **********************************;
