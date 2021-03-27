@@ -42,10 +42,6 @@ times 64 dq 0
 GDT_SIZE    equ   $ - GDT_BASE
 GDT_LIMIT   equ   GDT_SIZE - 1
 
-SELECTOR_CODE    equ (0x0001 << 3) + TI_GDT + RPL0
-SELECTOR_DATA    equ (0x0002 << 3) + TI_GDT + RPL0
-SELECTOR_VIDEO   equ (0x0003 << 3) + TI_GDT + RPL0
-
 gdt_ptr:
   dw GDT_LIMIT
   dd GDT_BASE
@@ -141,12 +137,8 @@ print_message:
   push ebp
   mov ebp, esp
   push esi
-  push edi
-  push ebx
 
   mov esi, [ebp + 8]   ; arg: message ptr
-  mov edi, [cursor_row]
-  mov ebx, [cursor_col]
 
   call get_current_cursor_addr
   mov ecx, eax
@@ -158,7 +150,6 @@ print_message:
   mov byte [gs:ecx], dl
   mov byte [gs:ecx+1], 0x7  ; white on black
   add eax, 1
-  add ebx, 1
   add ecx, 2
   jmp .print_byte
 
@@ -167,8 +158,6 @@ print_message:
   call move_cursor
   add esp, 4
 
-  pop ebx
-  pop edi
   pop esi
   pop ebp
   ret
@@ -259,10 +248,10 @@ move_cursor:
 ;****************************** setup paging **********************************;
 setup_page:
   ; clear the memory space for page directory
-  mov eax, PAGE_DIR_TABLE_POS
-  mov ecx, 4096
-  mov esi, 0
+  push 4096
+  push PAGE_DIR_TABLE_POS
   call clear_memory
+  add esp, 8
 
   ; create page directory
 .create_pde:
@@ -278,9 +267,8 @@ setup_page:
   mov eax, PAGE_DIR_TABLE_POS
   mov [PAGE_DIR_TABLE_POS + 4092], eax
 
-  ; create other kernel pde
-  mov eax, PAGE_DIR_TABLE_POS
-  add eax, 0x2000
+  ; other kernel pde
+  mov eax, PAGE_DIR_TABLE_POS + 0x2000
   or eax, PG_US_U | PG_RW_W | PG_P
   mov ecx, 254
   mov esi, 769
@@ -290,7 +278,7 @@ setup_page:
   add eax, 0x1000
   loop .create_kernel_pde
 
-  ; create the first page table
+  ; create the first page table, for 1MB low memory
   mov ecx, 256
   mov esi, 0
   mov edx, PG_US_U | PG_RW_W | PG_P
@@ -303,7 +291,16 @@ setup_page:
   ret
 
 clear_memory:
-  mov byte [eax + esi], 0
-  inc esi
-  loop clear_memory
+  push ebp
+  mov ebp, esp
+
+  mov eax, [ebp + 8]   ; start addr
+  mov ecx, [ebp + 12]  ; size
+  mov edx, 0
+.clear_byte:
+  mov byte [eax + edx], 0
+  inc edx
+  loop .clear_byte
+
+  pop ebp
   ret

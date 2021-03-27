@@ -88,6 +88,10 @@ RPL3 equ 11b
 TI_GDT equ 000b
 TI_LDT equ 100b
 
+SELECTOR_CODE    equ (0x0001 << 3) + TI_GDT + RPL0
+SELECTOR_DATA    equ (0x0002 << 3) + TI_GDT + RPL0
+SELECTOR_VIDEO   equ (0x0003 << 3) + TI_GDT + RPL0
+
 ;********************************** page **************************************;
 PAGE_DIR_TABLE_POS  equ  0x100000  ; 1MB
 
