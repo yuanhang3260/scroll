@@ -5,7 +5,21 @@ SECTION loader vstart=LOADER_BASE_ADDR
 loader_entry:
   jmp loader_start
 
-; initialize gdt
+;***************************** data section  **********************************;
+
+cursor_row: dd 0
+cursor_col: dd 0
+
+message1:
+  db "setup protection mode ... "
+
+message1_length equ $ - message1
+
+message2:
+  db "setup page ... "
+  db 0
+
+; gdt
 GDT_BASE:
   dd 0x00000000
   dd 0x00000000
@@ -109,14 +123,15 @@ protection_mode_start:
   ; set cursor
   push message1_length
   call move_cursor
+  add esp, 4
 
   ; set protection mode OK :)
   call print_OK
-
   call print_new_line
+
   push message2
   call print_message
-  sub esp, 12
+  add esp, 4
 
   jmp $
   ret
@@ -150,6 +165,7 @@ print_message:
 .print_end:
   push eax
   call move_cursor
+  add esp, 4
 
   pop ebx
   pop edi
@@ -172,6 +188,7 @@ print_OK:
 
   push 4
   call move_cursor
+  add esp, 4
 
   ret
 
@@ -182,6 +199,7 @@ print_new_line:
   mov dword [cursor_col], 0
   push 0
   call move_cursor
+  add esp, 4
   ret
 
 get_current_cursor_addr:
@@ -208,16 +226,18 @@ move_cursor:
 
 .start_new_row:
   cmp edx, 80
-  jl  .do_move
+  jle .do_move
   inc ecx
   sub edx, 80
   jmp .start_new_row
 
-  mov [cursor_row], ecx
-  mov [cursor_col], edx
 .do_move:
+  mov dword [cursor_row], ecx
+  mov dword [cursor_col], edx
+
   call get_current_cursor_addr
   shr eax, 1
+  mov ecx, eax
 
   mov al, 14
   mov dx, 0x3D4
@@ -287,15 +307,3 @@ clear_memory:
   inc esi
   loop clear_memory
   ret
-
-cursor_row: dd 0
-cursor_col: dd 0
-
-message1:
-  db "setup protection mode ... "
-
-message1_length equ $ - message1
-
-message2:
-  db "setup paging ..."
-  db 0
