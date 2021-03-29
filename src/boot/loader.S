@@ -10,12 +10,12 @@ loader_entry:
 cursor_row: dd 0
 cursor_col: dd 0
 
-message1:
+setup_protection_mode_message:
   db "setup protection mode ... "
 
-message1_length equ $ - message1
+setup_protection_mode_message_length equ $ - setup_protection_mode_message
 
-message2:
+setup_page_message:
   db "setup page ... "
   db 0
 
@@ -81,9 +81,9 @@ print_message_real_mode:
   ret
 
 setup_protection_mode:
-  mov ax, message1
+  mov ax, setup_protection_mode_message
   mov dx, 0x00
-  mov cx, message1_length
+  mov cx, setup_protection_mode_message_length
   call print_message_real_mode
 
   ; enable A20
@@ -100,12 +100,12 @@ setup_protection_mode:
   mov cr0, eax
 
   ; refresh pipeline
-  jmp dword SELECTOR_CODE:protection_mode_start
+  jmp dword SELECTOR_CODE:protection_mode_entry
 
 
 ;************************ 32-bits protection mode *****************************;
 [bits 32]
-protection_mode_start:
+protection_mode_entry:
   ; set data segments
   mov ax, SELECTOR_DATA
   mov ds, ax
@@ -117,7 +117,7 @@ protection_mode_start:
   mov gs, ax
 
   ; set cursor
-  push message1_length
+  push setup_protection_mode_message_length
   call move_cursor
   add esp, 4
 
@@ -125,9 +125,15 @@ protection_mode_start:
   call print_OK
   call print_new_line
 
-  push message2
+  ; setup page
+  push setup_page_message
   call print_message
   add esp, 4
+
+  call setup_page
+
+  call print_OK
+  call print_new_line  
 
   jmp $
   ret
@@ -256,37 +262,67 @@ setup_page:
   ; create page directory
 .create_pde:
   ; first pde
-  mov eax, PAGE_DIR_TABLE_POS + 0x1000
-  mov ebx, eax
-
+  mov eax, PAGE_DIR_TABLE_POS + 4096
   or eax, PG_US_U | PG_RW_W | PG_P
   mov [PAGE_DIR_TABLE_POS + 0], eax
   mov [PAGE_DIR_TABLE_POS + 768 * 4], eax
 
   ; the last pde
   mov eax, PAGE_DIR_TABLE_POS
-  mov [PAGE_DIR_TABLE_POS + 4092], eax
+  or eax, PG_US_U | PG_RW_W | PG_P
+  mov [PAGE_DIR_TABLE_POS + 1023 * 4], eax
 
   ; other kernel pde
-  mov eax, PAGE_DIR_TABLE_POS + 0x2000
+  mov eax, PAGE_DIR_TABLE_POS + 4096 * 2
   or eax, PG_US_U | PG_RW_W | PG_P
   mov ecx, 254
-  mov esi, 769
+  mov edx, PAGE_DIR_TABLE_POS + 769 * 4
 .create_kernel_pde:
-  mov [PAGE_DIR_TABLE_POS + esi * 4], eax
-  inc esi
-  add eax, 0x1000
+  mov [edx], eax
+  add eax, 4096
+  add edx, 4
   loop .create_kernel_pde
 
   ; create the first page table, for 1MB low memory
+  mov eax, 0
+  or eax, PG_US_U | PG_RW_W | PG_P
   mov ecx, 256
-  mov esi, 0
-  mov edx, PG_US_U | PG_RW_W | PG_P
+  mov edx, PAGE_DIR_TABLE_POS + 4096
 .create_pte:
-  mov [ebx + esi * 4], edx
-  add edx, 4096
-  inc esi
+  mov [edx], eax
+  add eax, 4096
+  add edx, 4
   loop .create_pte
+
+  call enable_page
+  ret
+
+enable_page:
+  sgdt [gdt_ptr]
+
+  ; move the video segment to > 0xC0000000
+  mov ebx, [gdt_ptr + 2]
+  or dword [ebx + 0x18 + 4], 0xC0000000
+  
+  ; move gdt to > 0xC0000000
+  add dword [gdt_ptr + 2], 0xC0000000
+
+  ; move stack to 0xC0000000
+  mov eax, [esp]
+  add esp, 0xc0000000
+  mov [esp], eax
+
+  ; set page directory address to cr3 register 
+  mov eax, PAGE_DIR_TABLE_POS
+  mov cr3, eax
+  
+  ; enable paging on cr0 register
+  mov eax, cr0
+  or eax, 0x80000000
+  mov cr0, eax
+
+  ; load gdt again - gdt has been moved to > 0xC0000000
+  lgdt [gdt_ptr]
 
   ret
 
@@ -296,10 +332,9 @@ clear_memory:
 
   mov eax, [ebp + 8]   ; start addr
   mov ecx, [ebp + 12]  ; size
-  mov edx, 0
 .clear_byte:
-  mov byte [eax + edx], 0
-  inc edx
+  mov byte [eax], 0
+  add eax, 1
   loop .clear_byte
 
   pop ebp
