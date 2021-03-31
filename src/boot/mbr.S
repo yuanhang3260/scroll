@@ -29,7 +29,7 @@ load_loader_img:
   ; 28-bit LBA, so use 32-bit eax register
   mov eax, LOADER_START_SECTOR  ; 0x01
   mov bx, LOADER_BASE_ADDR  ; 0x8000
-  mov cx, 0x08
+  mov cx, 0x08  ; loader max size 8 * 512 = 4KB
   call read_disk
   ret
 

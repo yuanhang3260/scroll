@@ -6,7 +6,6 @@ loader_entry:
   jmp loader_start
 
 ;***************************** data section  **********************************;
-
 cursor_row: dd 0
 cursor_col: dd 0
 
@@ -17,6 +16,10 @@ setup_protection_mode_message_length equ $ - setup_protection_mode_message
 
 setup_page_message:
   db "setup page ... "
+  db 0
+
+init_kernel_message:
+  db "init kernel ... "
   db 0
 
 ; gdt
@@ -36,8 +39,8 @@ VIDEO_DESC:
   dd DESC_VIDEO_LOW_32
   dd DESC_VIDEO_HIGH_32
 
-; reserve 64 gdt entries space
-times 64 dq 0
+; reserve 60 gdt entries space
+times 60 dq 0
 
 GDT_SIZE    equ   $ - GDT_BASE
 GDT_LIMIT   equ   GDT_SIZE - 1
@@ -133,7 +136,17 @@ protection_mode_entry:
   call setup_page
 
   call print_OK
-  call print_new_line  
+  call print_new_line
+
+  ; load kernel
+  push init_kernel_message
+  call print_message
+  add esp, 4
+
+  call init_kernel
+
+  call print_OK
+  call print_new_line
 
   jmp $
   ret
@@ -294,8 +307,49 @@ setup_page:
   add edx, 4
   loop .create_pte
 
+  ; allocate pages for kernel load
+  mov ecx, KERNEL_BIN_MAX_SIZE
+  shl ecx, 12  ; ecx = (num of pages to load kernel bin)
+  mov eax, KERNEL_BIN_LOAD_ADDR
+  mov edx, eax
+  shl edx, 12  ; edx = pde index for kernel bin load mem
+
+
+
   call enable_page
   ret
+
+; set contineous pages mapping for virtual memory -> physical memory
+;  - arg 1: virtual addr start (page aligned)
+;  - arg 2: physical addr start (page aligned)
+;  - arg 3: num of pages
+;
+; caller must make sure the physical memory starting from arg2 is free to use
+set_pages_mapping:
+  push ebp
+  mov ebp, esp
+  push esi
+  push edi
+  push ebx
+
+  mov edi, [ebp + 8]    ; virtual addr start
+  mov esi, [ebp + 12]   ; physical addr start
+  mov ecx, [ebp + 16]   ; pages
+
+  shl edi, 20  ; pde index
+.set_page_table_mapping:
+  mov edx, [PAGE_DIR_TABLE_POS + edi * 4]
+  and edx, 0x000  ; page table address
+
+  mov eax, esi
+  or eax, PG_US_U | PG_RW_W | PG_P
+  mov [edx + ], eax
+
+  pop ebx
+  pop edi
+  pop esi
+  pop ebp
+  ret  
 
 enable_page:
   sgdt [gdt_ptr]
@@ -303,7 +357,7 @@ enable_page:
   ; move the video segment to > 0xC0000000
   mov ebx, [gdt_ptr + 2]
   or dword [ebx + 0x18 + 4], 0xC0000000
-  
+
   ; move gdt to > 0xC0000000
   add dword [gdt_ptr + 2], 0xC0000000
 
@@ -324,6 +378,10 @@ enable_page:
   ; load gdt again - gdt has been moved to > 0xC0000000
   lgdt [gdt_ptr]
 
+  ; refresh video segment selector cache
+  mov ax, SELECTOR_VIDEO
+  mov gs, ax
+
   ret
 
 clear_memory:
@@ -337,5 +395,125 @@ clear_memory:
   add eax, 1
   loop .clear_byte
 
+  pop ebp
+  ret
+
+; read data from disk, in 32-bit mode
+read_disk_32:
+  mov esi, eax
+  mov di, cx
+
+  ; sector count
+  mov dx, 0x01f2
+  mov al, cl
+  out dx, al
+
+  mov eax, esi
+
+  ; LBA low
+  mov dx, 0x1f3
+  out dx, al
+
+  ; LBA mid
+  shr eax, 8
+  mov dx, 0x1f4
+  out dx, al
+
+  ; LBA high
+  shr eax, 8
+  mov dx, 0x1f5
+  out dx, al
+
+  ; device reg: LBA[24:28]
+  shr eax, 8
+  and al, 0x0f
+
+  or al, 0xe0  ; 0x1110, LBA mode
+  mov dx, 0x1f6
+  out dx, al
+
+  ; command reg: 0x2 read, start reading
+  mov dx, 0x1f7
+  mov al, 0x20
+  out dx, al
+
+.hd_not_ready:
+  nop
+  in al, dx
+  and al, 0x88  ; bit 7 (busy), bit 3 (data ready)
+  cmp al, 0x08
+  jnz .hd_not_ready
+
+  ; di = cx = sector count
+  ; read 2 bytes time, so loop (sector count) * 512 / 2 times
+  mov ax, di
+  mov dx, 256
+  mul dx
+  mov cx, ax
+
+  mov dx, 0x1f0
+
+.go_on_read_data:
+  in ax, dx
+  mov [bx], ax
+  add bx, 2
+  loop .go_on_read_data
+  ret
+
+;****************************** init kernel ***********************************;
+init_kernel:
+  mov eax, KERNEL_START_SECTOR
+  mov ebx, KERNEL_BIN_LOAD_ADDR
+  mov ecx, KERNEL_SECTORS
+  call read_disk_32
+
+  call load_kernel
+  ret
+
+load_kernel:
+  xor eax, eax
+  xor ebx, ebx
+  xor ecx, ecx
+  xor edx, edx
+
+  mov dx, [KERNEL_BIN_LOAD_ADDR + 42]   ; e_phentsize
+  mov ebx, [KERNEL_BIN_LOAD_ADDR + 28]  ; e_phoff
+  add ebx, KERNEL_BIN_LOAD_ADDR
+  mov cx, [KERNEL_BIN_LOAD_ADDR + 44]   ; e_phnum
+
+.load_each_segment:
+  cmp byte [ebx + 0], 0
+  je .PTNULL
+
+  push dword [ebx + 16]  ; p_filesz
+  mov eax, [ebx + 4]     ; p_offset
+  add eax, KERNEL_BIN_LOAD_ADDR
+  push eax
+  push dword [ebx + 8]   ; p_vaddr
+  call memcpy
+  add esp, 12
+
+.PTNULL:
+  add ebx, edx
+  loop .load_each_segment
+
+  ret
+
+memcpy:
+  cld
+  push ebp
+  mov ebp, esp
+  push esi
+  push edi
+  push ecx
+
+  mov edi, [ebp + 8]    ; dst
+  mov esi, [ebp + 12]   ; src
+  mov ecx, [ebp + 16]   ; size
+  rep movsb
+
+  pop ecx
+  pop edi
+  pop esi
   pop ebp
   ret

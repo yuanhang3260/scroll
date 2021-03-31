@@ -100,3 +100,19 @@ PG_RW_R  equ  0 << 1
 PG_RW_W  equ  1 << 1
 PG_US_S  equ  0 << 2
 PG_US_U  equ  1 << 2
+
+;******************************** kernel **************************************;
+KERNEL_START_SECTOR     equ   9
+KERNEL_BIN_MAX_SIZE     equ   1024 * 1024  ; 1MB
+KERNEL_SECTORS          equ   KERNEL_BIN_MAX_SIZE / 512
+
+KERNEL_BIN_LOAD_MEM_MAX      equ   0xFFC00000
+KERNEL_BIN_LOAD_ADDR         equ   KERNEL_BIN_LOAD_MEM_MAX - KERNEL_BIN_MAX_SIZE
+
+KERNEL_VIRTUAL_ADDR_START    equ   0xC0300000
+KERNEL_LOAD_SIZE_MAX         equ   1024 * 1024
+
+; TODO: detect machine physical memory size
+PHY_MEM_SIZE  equ  32 * 1024 * 1024
+
+
