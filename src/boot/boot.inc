@@ -93,7 +93,8 @@ SELECTOR_DATA    equ (0x0002 << 3) + TI_GDT + RPL0
 SELECTOR_VIDEO   equ (0x0003 << 3) + TI_GDT + RPL0
 
 ;********************************** page **************************************;
-PAGE_DIR_TABLE_POS  equ  0x100000  ; 1MB
+PAGE_DIR_TABLE_POS       equ  0x100000    ; 1MB
+PAGE_DIR_VIRTUAL_ADDR    equ  0xFFFFF000  ; 32G - 4KB
 
 PG_P      equ  1
 PG_RW_R  equ  0 << 1
@@ -102,17 +103,18 @@ PG_US_S  equ  0 << 2
 PG_US_U  equ  1 << 2
 
 ;******************************** kernel **************************************;
+; TODO: detect machine physical memory size
+PHY_MEM_SIZE  equ  32 * 1024 * 1024
+
 KERNEL_START_SECTOR     equ   9
 KERNEL_BIN_MAX_SIZE     equ   1024 * 1024  ; 1MB
 KERNEL_SECTORS          equ   KERNEL_BIN_MAX_SIZE / 512
 
-KERNEL_BIN_LOAD_MEM_MAX      equ   0xFFC00000
-KERNEL_BIN_LOAD_ADDR         equ   KERNEL_BIN_LOAD_MEM_MAX - KERNEL_BIN_MAX_SIZE
+KERNEL_BIN_LOAD_MEM_MAX         equ   0xFFC00000
+KERNEL_BIN_LOAD_VIRTUAL_ADDR    equ   KERNEL_BIN_LOAD_MEM_MAX - KERNEL_BIN_MAX_SIZE
+KERNEL_BIN_LOAD_PHYSICAL_ADDR   equ   PHY_MEM_SIZE - KERNEL_BIN_MAX_SIZE
 
-KERNEL_VIRTUAL_ADDR_START    equ   0xC0300000
-KERNEL_LOAD_SIZE_MAX         equ   1024 * 1024
-
-; TODO: detect machine physical memory size
-PHY_MEM_SIZE  equ  32 * 1024 * 1024
-
+KERNEL_VIRTUAL_ADDR_START       equ   0xC0300000
+KERNEL_PHYSICAL_ADDR_START      equ   0x300000  ; 3MB
+KERNEL_SIZE_MAX                 equ   1024 * 1024
 

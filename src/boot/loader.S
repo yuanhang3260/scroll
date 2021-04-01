@@ -307,19 +307,10 @@ setup_page:
   add edx, 4
   loop .create_pte
 
-  ; allocate pages for kernel load
-  mov ecx, KERNEL_BIN_MAX_SIZE
-  shl ecx, 12  ; ecx = (num of pages to load kernel bin)
-  mov eax, KERNEL_BIN_LOAD_ADDR
-  mov edx, eax
-  shl edx, 12  ; edx = pde index for kernel bin load mem
-
-
-
   call enable_page
   ret
 
-; set contineous pages mapping for virtual memory -> physical memory
+; set contineous kernel pages mapping for virtual memory -> physical memory
 ;  - arg 1: virtual addr start (page aligned)
 ;  - arg 2: physical addr start (page aligned)
 ;  - arg 3: num of pages
@@ -332,24 +323,65 @@ set_pages_mapping:
   push edi
   push ebx
 
-  mov edi, [ebp + 8]    ; virtual addr start
-  mov esi, [ebp + 12]   ; physical addr start
+  mov esi, [ebp + 8]    ; virtual addr start
+  mov edi, [ebp + 12]   ; physical addr start
   mov ecx, [ebp + 16]   ; pages
 
-  shl edi, 20  ; pde index
+  shr esi, 22  ; pde index
+  or edi, PG_US_U | PG_RW_W | PG_P
+.next_pde:
+  mov eax, 0
+  mov edx, PAGE_DIR_VIRTUAL_ADDR
+  mov ebx, [edx + esi * 4]
+  and ebx, 0xFFFFF000  ; page table address
 .set_page_table_mapping:
-  mov edx, [PAGE_DIR_TABLE_POS + edi * 4]
-  and edx, 0x000  ; page table address
-
-  mov eax, esi
-  or eax, PG_US_U | PG_RW_W | PG_P
-  mov [edx + ], eax
+  mov [ebx + eax * 4], edi
+  add edi, 4096
+  add eax, 1
+  cmp eax, 1024
+  jne .go_on_same_page_table
+  add esi, 1
+  jmp .next_pde
+.go_on_same_page_table:
+  loop .set_page_table_mapping
 
   pop ebx
   pop edi
   pop esi
   pop ebp
-  ret  
+  ret
+
+; clear contineous kernel pages mapping for virtual memory
+;  - arg 1: virtual addr start (page aligned)
+;  - arg 2: num of pages
+clear_pages_mapping:
+  push ebp
+  mov ebp, esp
+  push esi
+  push ebx
+
+  mov esi, [ebp + 8]    ; virtual addr start
+  mov ecx, [ebp + 12]   ; pages
+
+  shr esi, 22  ; pde index
+.next_pde:
+  mov eax, 0  
+  mov ebx, [PAGE_DIR_VIRTUAL_ADDR + esi * 4]
+  and ebx, 0x000  ; page table address
+.set_page_table_mapping:
+  mov dword [ebx + eax * 4], 0
+  add eax, 1
+  cmp eax, 1024
+  jne .go_on_same_page_table
+  add esi, 1
+  jmp .next_pde
+.go_on_same_page_table:
+  loop .set_page_table_mapping
+
+  pop ebx
+  pop esi
+  pop ebp
+  ret
 
 enable_page:
   sgdt [gdt_ptr]
@@ -382,6 +414,91 @@ enable_page:
   mov ax, SELECTOR_VIDEO
   mov gs, ax
 
+  ret
+
+
+;****************************** init kernel ***********************************;
+init_kernel:
+  call allocate_pages_for_kernel
+  call load_hd_kernel_image
+  call do_load_kernel
+  ret
+
+allocate_pages_for_kernel:
+  ; allocate pages to load kernel bin image
+  mov ecx, KERNEL_BIN_MAX_SIZE
+  shr ecx, 12
+  push ecx  ; arg 3: num of pages to load kernel bin image
+  push KERNEL_BIN_LOAD_PHYSICAL_ADDR  ; arg 2: physical addr
+  push KERNEL_BIN_LOAD_VIRTUAL_ADDR   ; arg 1: virtual addr
+  call set_pages_mapping
+
+  jmp $
+
+  ; allocate pages to place kernel sections
+  mov ecx, KERNEL_SIZE_MAX
+  shr ecx, 12
+  push ecx  ; arg 3: num of pages to place kernel
+  push KERNEL_PHYSICAL_ADDR_START  ; arg 2: physical addr
+  push KERNEL_VIRTUAL_ADDR_START   ; arg 1: virtual addr
+  call set_pages_mapping
+
+  ret
+
+load_hd_kernel_image:
+  mov eax, KERNEL_START_SECTOR
+  mov ebx, KERNEL_BIN_LOAD_VIRTUAL_ADDR
+  mov ecx, KERNEL_SECTORS
+  call read_disk_32
+  ret
+
+do_load_kernel:
+  xor eax, eax
+  xor ebx, ebx
+  xor ecx, ecx
+  xor edx, edx
+
+  mov dx, [KERNEL_BIN_LOAD_VIRTUAL_ADDR + 42]   ; e_phentsize
+  mov ebx, [KERNEL_BIN_LOAD_VIRTUAL_ADDR + 28]  ; e_phoff
+  add ebx, KERNEL_BIN_LOAD_VIRTUAL_ADDR
+  mov cx, [KERNEL_BIN_LOAD_VIRTUAL_ADDR + 44]   ; e_phnum
+
+.load_each_segment:
+  cmp byte [ebx + 0], 0
+  je .next_prgoram_header
+
+  push dword [ebx + 16]  ; p_filesz
+  mov eax, [ebx + 4]     ; p_offset
+  add eax, KERNEL_BIN_LOAD_VIRTUAL_ADDR
+  push eax
+  push dword [ebx + 8]   ; p_vaddr
+  call memcpy
+  add esp, 12
+
+.next_prgoram_header:
+  add ebx, edx
+  loop .load_each_segment
+
+  ret
+
+;****************************** init kernel ***********************************;
+memcpy:
+  cld
+  push ebp
+  mov ebp, esp
+  push esi
+  push edi
+  push ecx
+
+  mov edi, [ebp + 8]    ; dst
+  mov esi, [ebp + 12]   ; src
+  mov ecx, [ebp + 16]   ; size
+  rep movsb
+
+  pop ecx
+  pop edi
+  pop esi
+  pop ebp
   ret
 
 clear_memory:
@@ -458,62 +575,4 @@ read_disk_32:
   mov [bx], ax
   add bx, 2
   loop .go_on_read_data
-  ret
-
-;****************************** init kernel ***********************************;
-init_kernel:
-  mov eax, KERNEL_START_SECTOR
-  mov ebx, KERNEL_BIN_LOAD_ADDR
-  mov ecx, KERNEL_SECTORS
-  call read_disk_32
-
-  call load_kernel
-  ret
-
-load_kernel:
-  xor eax, eax
-  xor ebx, ebx
-  xor ecx, ecx
-  xor edx, edx
-
-  mov dx, [KERNEL_BIN_LOAD_ADDR + 42]   ; e_phentsize
-  mov ebx, [KERNEL_BIN_LOAD_ADDR + 28]  ; e_phoff
-  add ebx, KERNEL_BIN_LOAD_ADDR
-  mov cx, [KERNEL_BIN_LOAD_ADDR + 44]   ; e_phnum
-
-.load_each_segment:
-  cmp byte [ebx + 0], 0
-  je .PTNULL
-
-  push dword [ebx + 16]  ; p_filesz
-  mov eax, [ebx + 4]     ; p_offset
-  add eax, KERNEL_BIN_LOAD_ADDR
-  push eax
-  push dword [ebx + 8]   ; p_vaddr
-  call memcpy
-  add esp, 12
-
-.PTNULL:
-  add ebx, edx
-  loop .load_each_segment
-
-  ret
-
-memcpy:
-  cld
-  push ebp
-  mov ebp, esp
-  push esi
-  push edi
-  push ecx
-
-  mov edi, [ebp + 8]    ; dst
-  mov esi, [ebp + 12]   ; src
-  mov ecx, [ebp + 16]   ; size
-  rep movsb
-
-  pop ecx
-  pop edi
-  pop esi
-  pop ebp
   ret
