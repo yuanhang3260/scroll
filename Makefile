@@ -4,6 +4,8 @@ BIN_DIR=bin
 
 OBJS_C = \
 	$(OBJ_DIR)/main.o \
+	$(OBJ_DIR)/common/common.o \
+	$(OBJ_DIR)/monitor/monitor.o \
 
 OBJS_ASM = \
 
@@ -30,12 +32,29 @@ loader: $(SRC_DIR)/boot/loader.S
 	mkdir -p $(BIN_DIR)
 	nasm -o $(BIN_DIR)/loader $<
 
-loader: $(SRC_DIR)/boot/loader.S
-
 kernel: ${OBJS_C} ${OBJS_ASM} link.ld
 	ld $(LDFLAGS) -o bin/kernel ${OBJS_C} ${OBJS_ASM}
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/%.h
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c
+	mkdir -p $(OBJ_DIR)/common
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c $(SRC_DIR)/common/%.h
+	mkdir -p $(OBJ_DIR)/common
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/monitor/%.o: $(SRC_DIR)/monitor/%.c
+	mkdir -p $(OBJ_DIR)/monitor
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/monitor/%.o: $(SRC_DIR)/monitor/%.c $(SRC_DIR)/monitor/%.h
+	mkdir -p $(OBJ_DIR)/monitor
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
@@ -43,4 +62,4 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
 
 
 clean:
-	rm -rf ${OBJ_DIR}/*.o ${BIN_DIR}/* scroll.img bochsout.txt
+	rm -rf ${OBJ_DIR}/* ${BIN_DIR}/* scroll.img bochsout.txt

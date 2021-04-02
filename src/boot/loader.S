@@ -22,6 +22,10 @@ init_kernel_message:
   db "init kernel ... "
   db 0
 
+panic_message:
+  db "PANIC!"
+  db 0
+
 ; gdt
 GDT_BASE:
   dd 0x00000000
@@ -145,8 +149,10 @@ protection_mode_entry:
 
   call init_kernel
 
-  call print_OK
-  call print_new_line
+  ; should never reach here - we are into the kernel
+  push panic_message
+  call print_message
+  add esp, 4
 
   jmp $
   ret
@@ -280,16 +286,16 @@ setup_page:
   mov [PAGE_DIR_TABLE_POS + 0], eax
   mov [PAGE_DIR_TABLE_POS + 768 * 4], eax
 
-  ; the last pde
+  ; the second pde - we use this 4MB virtual space for all kernel page tales :)
   mov eax, PAGE_DIR_TABLE_POS
   or eax, PG_US_U | PG_RW_W | PG_P
-  mov [PAGE_DIR_TABLE_POS + 1023 * 4], eax
+  mov [PAGE_DIR_TABLE_POS + 769 * 4], eax
 
   ; other kernel pde
   mov eax, PAGE_DIR_TABLE_POS + 4096 * 2
   or eax, PG_US_U | PG_RW_W | PG_P
   mov ecx, 254
-  mov edx, PAGE_DIR_TABLE_POS + 769 * 4
+  mov edx, PAGE_DIR_TABLE_POS + 770 * 4
 .create_kernel_pde:
   mov [edx], eax
   add eax, 4096
@@ -327,23 +333,14 @@ set_pages_mapping:
   mov edi, [ebp + 12]   ; physical addr start
   mov ecx, [ebp + 16]   ; pages
 
-  shr esi, 22  ; pde index
+  shr esi, 12  ; page table index
   or edi, PG_US_U | PG_RW_W | PG_P
-.next_pde:
-  mov eax, 0
-  mov edx, PAGE_DIR_VIRTUAL_ADDR
-  mov ebx, [edx + esi * 4]
-  and ebx, 0xFFFFF000  ; page table address
-.set_page_table_mapping:
-  mov [ebx + eax * 4], edi
-  add edi, 4096
-  add eax, 1
-  cmp eax, 1024
-  jne .go_on_same_page_table
+.map_next_page:
+  ; Note we use the VIRTUAL address of page tables, starting from 0xFFC00000
+  mov [PAGE_TABLES_VIRTUAL_ADDR_START + esi * 4], edi
   add esi, 1
-  jmp .next_pde
-.go_on_same_page_table:
-  loop .set_page_table_mapping
+  add edi, 4096
+  loop .map_next_page
 
   pop ebx
   pop edi
@@ -363,20 +360,13 @@ clear_pages_mapping:
   mov esi, [ebp + 8]    ; virtual addr start
   mov ecx, [ebp + 12]   ; pages
 
-  shr esi, 22  ; pde index
-.next_pde:
-  mov eax, 0  
-  mov ebx, [PAGE_DIR_VIRTUAL_ADDR + esi * 4]
-  and ebx, 0x000  ; page table address
-.set_page_table_mapping:
-  mov dword [ebx + eax * 4], 0
-  add eax, 1
-  cmp eax, 1024
-  jne .go_on_same_page_table
+  shr esi, 12  ; page table index
+.clear_next_page_map:
+  ; Note we use the VIRTUAL address of page tables, starting from 0xFFC00000
+  mov dword [PAGE_TABLES_VIRTUAL_ADDR_START + esi * 4], 0
   add esi, 1
-  jmp .next_pde
-.go_on_same_page_table:
-  loop .set_page_table_mapping
+  add edi, 4096
+  loop .clear_next_page_map
 
   pop ebx
   pop esi
@@ -422,6 +412,9 @@ init_kernel:
   call allocate_pages_for_kernel
   call load_hd_kernel_image
   call do_load_kernel
+
+  ; let's jump to kernel entry :)
+  jmp KERNEL_ENTRY_ADDR
   ret
 
 allocate_pages_for_kernel:
@@ -432,8 +425,7 @@ allocate_pages_for_kernel:
   push KERNEL_BIN_LOAD_PHYSICAL_ADDR  ; arg 2: physical addr
   push KERNEL_BIN_LOAD_VIRTUAL_ADDR   ; arg 1: virtual addr
   call set_pages_mapping
-
-  jmp $
+  add esp, 12
 
   ; allocate pages to place kernel sections
   mov ecx, KERNEL_SIZE_MAX
@@ -442,6 +434,7 @@ allocate_pages_for_kernel:
   push KERNEL_PHYSICAL_ADDR_START  ; arg 2: physical addr
   push KERNEL_VIRTUAL_ADDR_START   ; arg 1: virtual addr
   call set_pages_mapping
+  add esp, 12
 
   ret
 
@@ -518,7 +511,7 @@ clear_memory:
 ; read data from disk, in 32-bit mode
 read_disk_32:
   mov esi, eax
-  mov di, cx
+  mov edi, ecx
 
   ; sector count
   mov dx, 0x01f2
@@ -563,16 +556,17 @@ read_disk_32:
 
   ; di = cx = sector count
   ; read 2 bytes time, so loop (sector count) * 512 / 2 times
-  mov ax, di
-  mov dx, 256
-  mul dx
-  mov cx, ax
+  mov eax, edi
+  mov edx, 256
+  mul edx
+  mov ecx, eax
 
   mov dx, 0x1f0
 
 .go_on_read_data:
   in ax, dx
-  mov [bx], ax
-  add bx, 2
+  mov [ebx], ax
+  add ebx, 2
   loop .go_on_read_data
+
   ret

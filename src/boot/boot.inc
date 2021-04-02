@@ -92,9 +92,10 @@ SELECTOR_CODE    equ (0x0001 << 3) + TI_GDT + RPL0
 SELECTOR_DATA    equ (0x0002 << 3) + TI_GDT + RPL0
 SELECTOR_VIDEO   equ (0x0003 << 3) + TI_GDT + RPL0
 
-;********************************** page **************************************;
-PAGE_DIR_TABLE_POS       equ  0x100000    ; 1MB
-PAGE_DIR_VIRTUAL_ADDR    equ  0xFFFFF000  ; 32G - 4KB
+;********************************* page ***************************************;
+PAGE_DIR_TABLE_POS                equ  0x100000    ; 1MB: physical address
+PAGE_DIR_VIRTUAL_ADDR             equ  0xC0401000  ; 4MB + 4KB
+PAGE_TABLES_VIRTUAL_ADDR_START    equ  0xC0400000  ; 4MB
 
 PG_P      equ  1
 PG_RW_R  equ  0 << 1
@@ -110,11 +111,12 @@ KERNEL_START_SECTOR     equ   9
 KERNEL_BIN_MAX_SIZE     equ   1024 * 1024  ; 1MB
 KERNEL_SECTORS          equ   KERNEL_BIN_MAX_SIZE / 512
 
-KERNEL_BIN_LOAD_MEM_MAX         equ   0xFFC00000
-KERNEL_BIN_LOAD_VIRTUAL_ADDR    equ   KERNEL_BIN_LOAD_MEM_MAX - KERNEL_BIN_MAX_SIZE
+KERNEL_BIN_LOAD_MEM_MAX         equ   0xFFFFFFFF
+KERNEL_BIN_LOAD_VIRTUAL_ADDR    equ   KERNEL_BIN_LOAD_MEM_MAX - KERNEL_BIN_MAX_SIZE + 1  ; 0xFFF00000
 KERNEL_BIN_LOAD_PHYSICAL_ADDR   equ   PHY_MEM_SIZE - KERNEL_BIN_MAX_SIZE
 
-KERNEL_VIRTUAL_ADDR_START       equ   0xC0300000
+KERNEL_VIRTUAL_ADDR_START       equ   0xC0800000
 KERNEL_PHYSICAL_ADDR_START      equ   0x300000  ; 3MB
 KERNEL_SIZE_MAX                 equ   1024 * 1024
 
+KERNEL_ENTRY_ADDR               equ   KERNEL_VIRTUAL_ADDR_START
