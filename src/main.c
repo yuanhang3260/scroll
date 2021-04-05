@@ -4,7 +4,11 @@
 int a = 3;
 int b;
 char* welcome = "# welcome to scroll kernel #\n";
-char* shell = "bash";
+
+void print_shell() {
+  monitor_write_with_color("bash", COLOR_GREEN);
+  monitor_write(" > ");
+}
 
 int main() {
   b = 5;
@@ -12,9 +16,4 @@ int main() {
   monitor_write(welcome);
   print_shell();
   while(1) {}
-}
-
-void print_shell() {
-  monitor_write_with_color("bash", COLOR_GREEN);
-  monitor_write(" > ");
 }

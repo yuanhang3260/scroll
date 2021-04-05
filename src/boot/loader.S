@@ -128,7 +128,7 @@ protection_mode_entry:
   call move_cursor
   add esp, 4
 
-  ; set protection mode OK :)
+  ; set protection mode OK
   call print_OK
   call print_new_line
 
@@ -336,7 +336,7 @@ set_pages_mapping:
   shr esi, 12  ; page table index
   or edi, PG_US_U | PG_RW_W | PG_P
 .map_next_page:
-  ; Note we use the VIRTUAL address of page tables, starting from 0xFFC00000
+  ; Note we use the VIRTUAL address of page tables, starting from 0xC0400000
   mov [PAGE_TABLES_VIRTUAL_ADDR_START + esi * 4], edi
   add esi, 1
   add edi, 4096
@@ -362,7 +362,7 @@ clear_pages_mapping:
 
   shr esi, 12  ; page table index
 .clear_next_page_map:
-  ; Note we use the VIRTUAL address of page tables, starting from 0xFFC00000
+  ; Note we use the VIRTUAL address of page tables, starting from 0xC0400000
   mov dword [PAGE_TABLES_VIRTUAL_ADDR_START + esi * 4], 0
   add esi, 1
   add edi, 4096
@@ -414,7 +414,7 @@ init_kernel:
   call do_load_kernel
 
   ; let's jump to kernel entry :)
-  jmp KERNEL_ENTRY_ADDR
+  jmp eax
   ret
 
 allocate_pages_for_kernel:
@@ -445,6 +445,8 @@ load_hd_kernel_image:
   call read_disk_32
   ret
 
+; load kernel sections to memory
+; return the kernel entry point address
 do_load_kernel:
   xor eax, eax
   xor ebx, ebx
@@ -472,6 +474,7 @@ do_load_kernel:
   add ebx, edx
   loop .load_each_segment
 
+  mov eax, [KERNEL_BIN_LOAD_VIRTUAL_ADDR + 24]
   ret
 
 ;****************************** init kernel ***********************************;
