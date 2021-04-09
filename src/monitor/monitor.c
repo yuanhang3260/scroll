@@ -1,4 +1,5 @@
-#include "monitor.h"
+#include "common/io.h"
+#include "monitor/monitor.h"
 
 // The VGA framebuffer starts at 0xB8000.
 uint16* video_memory = (uint16*)0xC00B8000;

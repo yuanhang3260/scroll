@@ -97,7 +97,7 @@ PAGE_DIR_TABLE_POS                equ  0x100000    ; 1MB: physical address
 PAGE_DIR_VIRTUAL_ADDR             equ  0xC0401000  ; 4MB + 4KB
 PAGE_TABLES_VIRTUAL_ADDR_START    equ  0xC0400000  ; 4MB
 
-PG_P      equ  1
+PG_P     equ  1
 PG_RW_R  equ  0 << 1
 PG_RW_W  equ  1 << 1
 PG_US_S  equ  0 << 2

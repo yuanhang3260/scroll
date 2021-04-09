@@ -5,7 +5,12 @@ BIN_DIR=bin
 OBJS_C = \
 	$(OBJ_DIR)/main.o \
 	$(OBJ_DIR)/common/common.o \
+	$(OBJ_DIR)/common/io.o \
+	$(OBJ_DIR)/common/stdlib.o \
+	$(OBJ_DIR)/common/global.o \
 	$(OBJ_DIR)/monitor/monitor.o \
+	$(OBJ_DIR)/interrupt/interrupt.o \
+	$(OBJ_DIR)/interrupt/idt.o \
 
 OBJS_ASM = \
 
@@ -35,11 +40,16 @@ loader: $(SRC_DIR)/boot/loader.S
 kernel: ${OBJS_C} ${OBJS_ASM} link.ld
 	ld $(LDFLAGS) -o bin/kernel ${OBJS_C} ${OBJS_ASM}
 
+
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/%.h
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
+	$(ASM) $(ASFLAGS) $< -o $@
+
 
 $(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c
 	mkdir -p $(OBJ_DIR)/common
@@ -57,7 +67,16 @@ $(OBJ_DIR)/monitor/%.o: $(SRC_DIR)/monitor/%.c $(SRC_DIR)/monitor/%.h
 	mkdir -p $(OBJ_DIR)/monitor
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
+$(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.c
+	mkdir -p $(OBJ_DIR)/interrupt
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.c $(SRC_DIR)/interrupt/%.h
+	mkdir -p $(OBJ_DIR)/interrupt
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.S
+	mkdir -p $(OBJ_DIR)/interrupt
 	$(ASM) $(ASFLAGS) $< -o $@
 
 
