@@ -50,6 +50,23 @@ void init_idt() {
   set_idt_gate(30, (uint32)isr30, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
   set_idt_gate(31, (uint32)isr31, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
 
+  set_idt_gate(32, (uint32)irq0, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(33, (uint32)irq1, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(34, (uint32)irq2, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(35, (uint32)irq3, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(36, (uint32)irq4, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(37, (uint32)irq5, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(38, (uint32)irq6, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(39, (uint32)irq7, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(40, (uint32)irq8, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(41, (uint32)irq9, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(42, (uint32)irq10, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(43, (uint32)irq11, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(44, (uint32)irq12, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(45, (uint32)irq13, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(46, (uint32)irq14, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+  set_idt_gate(47, (uint32)irq15, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL0);
+
   // refresh idt
   reload_idt((uint32)&idt_ptr);
 }
@@ -63,8 +80,8 @@ static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs) {
 }
 
 // This gets called from our ASM interrupt handler stub.
-void isr_handler(isr_params_t regs) {
+void isr_handler(interrupt_params_t params) {
   monitor_write("recieved interrupt: ");
-  monitor_write_dec(regs.int_no);
+  monitor_write_dec(params.int_num);
   monitor_put('\n');
 }

@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "monitor/monitor.h"
+#include "interrupt/timer.h"
 
 int a = 3;
 int b;
@@ -14,6 +15,10 @@ int main() {
   b = 5;
   monitor_clear();
   monitor_write(welcome);
-  print_shell();
+  //print_shell();
+
+  //asm volatile ("int $0x3");
+  init_timer(50);
+
   while(1) {}
 }

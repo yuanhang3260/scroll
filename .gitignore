@@ -1,6 +1,7 @@
 scroll.img
 objdump.txt
 bochsout.txt
+kernel_dump.txt
 kernel
 mbr
 loader

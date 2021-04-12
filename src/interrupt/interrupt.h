@@ -63,14 +63,32 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
+extern void irq0 ();
+extern void irq1 ();
+extern void irq2 ();
+extern void irq3 ();
+extern void irq4 ();
+extern void irq5 ();
+extern void irq6 ();
+extern void irq7 ();
+extern void irq8 ();
+extern void irq9 ();
+extern void irq10();
+extern void irq11();
+extern void irq12();
+extern void irq13();
+extern void irq14();
+extern void irq15();
+
 // argument struct for common isr_handler
-typedef struct isr_params {
+typedef struct interrupt_params {
   uint32 ds;
   uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
-  uint32 int_no;
+  uint32 int_num;
   uint32 err_code;
   uint32 eip, cs, eflags, useresp, ss;
-} isr_params_t;
+} interrupt_params_t;
 
+void isr_handler(interrupt_params_t regs);
 
 #endif
