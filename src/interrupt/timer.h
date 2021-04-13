@@ -3,6 +3,8 @@
 
 #include "common/common.h"
 
+#define TIMER_FREQUENCY  20
+
 void init_timer(uint32 frequency);
 
 #endif

@@ -1,20 +1,22 @@
-#include "interrupt/irq.h"
-#include "interrupt/timer.h"
-#include "monitor/monitor.h"
 #include "common/io.h"
+#include "monitor/monitor.h"
+#include "interrupt/interrupt.h"
+#include "interrupt/timer.h"
 
 uint32 tick = 0;
 
-static void timer_callback(interrupt_params_t regs) {
+static void timer_callback(isr_params_t regs) {
+  if (tick % TIMER_FREQUENCY == 0) {
+    monitor_write("second: ");
+    monitor_write_dec(tick / TIMER_FREQUENCY);
+    monitor_write("\n");
+  }
   tick++;
-  monitor_write("Tick: ");
-  monitor_write_dec(tick);
-  monitor_write("\n");
 }
 
 void init_timer(uint32 frequency){
   // Firstly, register our timer callback.
-  register_interrupt_handler(IRQ0, &timer_callback);
+  register_irq_handler(IRQ0_INT_NUM, &timer_callback);
 
   // The value we send to the PIT is the value to divide it's input clock
   // (1193180 Hz) by, to get our required frequency. Important to note is

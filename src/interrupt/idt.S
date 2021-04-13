@@ -101,7 +101,7 @@ isr_common_stub:
     cli
     push byte 0
     push byte %2
-    jmp irq_common_stub
+    jmp isr_common_stub
 %endmacro
 
 DEFINE_IRQ   0,    32
@@ -120,37 +120,3 @@ DEFINE_IRQ  12,    44
 DEFINE_IRQ  13,    45
 DEFINE_IRQ  14,    46
 DEFINE_IRQ  15,    47
-
-extern irq_handler
-
-irq_common_stub:
-  ; save common registers
-  pusha
-
-  ; save original data segment
-  mov ax, ds
-  push eax
-
-  ; load the kernel data segment descriptor
-  mov ax, 0x10
-  mov ds, ax
-  mov es, ax
-  mov fs, ax
-  mov gs, ax
-
-  call irq_handler
-
-  ; recover the original data segment
-  pop eax
-  mov ds, ax
-  mov es, ax
-  mov fs, ax
-  mov gs, ax
-
-  popa
-  ; cleans up the pushed error code and pushed ISR number
-  add esp, 8
-
-  sti
-  ; pops CS, EIP, EFLAGS, SS, and ESP by processor
-  iret

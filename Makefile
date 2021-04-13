@@ -10,7 +10,6 @@ OBJS_C = \
 	$(OBJ_DIR)/common/global.o \
 	$(OBJ_DIR)/monitor/monitor.o \
 	$(OBJ_DIR)/interrupt/interrupt.o \
-	$(OBJ_DIR)/interrupt/irq.o \
 	$(OBJ_DIR)/interrupt/idt.o \
 	$(OBJ_DIR)/interrupt/timer.o \
 

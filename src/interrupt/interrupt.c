@@ -6,6 +6,8 @@
 
 extern void reload_idt(uint32);
 static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs);
+static void irq_handler_common(isr_params_t params);
+static void init_pic();
 
 idt_ptr_t idt_ptr;
 static idt_entry_t idt_entries[256];
@@ -69,6 +71,8 @@ void init_idt() {
 
   // refresh idt
   reload_idt((uint32)&idt_ptr);
+
+  init_pic();
 }
 
 static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs) {
@@ -79,9 +83,60 @@ static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs) {
   idt_entries[num].attrs = attrs;
 }
 
-// This gets called from our ASM interrupt handler stub.
-void isr_handler(interrupt_params_t params) {
-  monitor_write("recieved interrupt: ");
-  monitor_write_dec(params.int_num);
-  monitor_put('\n');
+void isr_handler(isr_params_t params) {
+  if (params.int_num < 32) {
+    monitor_write("recieved interrupt: ");
+    monitor_write_dec(params.int_num);
+    monitor_write("\n");
+  } else {
+    irq_handler_common(params);
+  }
+}
+
+static void init_pic() {
+  // master
+  outb(0x20, 0x11);
+  outb(0x21, 0x20);
+  outb(0x21, 0x04);
+  outb(0x21, 0x01);
+  // slave
+  outb(0xA0, 0x11);
+  outb(0xA1, 0x28);
+  outb(0xA1, 0x02);
+  outb(0xA1, 0x01);
+  // unmask all irqs
+  outb(0x21, 0x0);
+  outb(0xA1, 0x0);
+}
+
+// ******************************** irq ************************************* //
+isr_t irq_handlers[256];
+
+void enable_interrupt() {
+  asm volatile ("sti");
+}
+
+void disable_interrupt() {
+  asm volatile ("cli");
+}
+
+static void irq_handler_common(isr_params_t params) {
+  // send an EOI (end of interrupt) signal to the PICs
+  if (params.int_num >= 40) {
+    // send reset signal to slave.
+    outb(0xA0, 0x20);
+  }
+  // send reset signal to master.
+  outb(0x20, 0x20);
+
+  if (irq_handlers[params.int_num] != 0) {
+    isr_t handler = irq_handlers[params.int_num];
+    handler(params);
+  } else {
+    monitor_write("unkown interrupt");
+  }
+}
+
+void register_irq_handler(uint8 n, isr_t handler) {
+  irq_handlers[n] = handler;
 }

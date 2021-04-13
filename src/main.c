@@ -1,9 +1,8 @@
 #include "common/common.h"
 #include "monitor/monitor.h"
 #include "interrupt/timer.h"
+#include "interrupt/interrupt.h"
 
-int a = 3;
-int b;
 char* welcome = "# welcome to scroll kernel #\n";
 
 void print_shell() {
@@ -12,13 +11,13 @@ void print_shell() {
 }
 
 int main() {
-  b = 5;
   monitor_clear();
   monitor_write(welcome);
   //print_shell();
 
-  //asm volatile ("int $0x3");
-  init_timer(50);
+  init_idt();
+  enable_interrupt();
+  init_timer(TIMER_FREQUENCY);
 
   while(1) {}
 }

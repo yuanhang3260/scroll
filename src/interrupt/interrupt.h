@@ -4,7 +4,7 @@
 #include "common/common.h"
 #include "common/global.h"
 
-// A struct describing an interrupt gate.
+// ******************************** idt ************************************* //
 struct idt_entry_struct {
   // the lower 16 bits of the handler address
   uint16 handler_addr_low;
@@ -29,7 +29,7 @@ typedef struct idt_ptr_struct idt_ptr_t;
 
 void init_idt();
 
-// isrs defined in idt.S
+// ******************************** isr ************************************* //
 extern void isr0();
 extern void isr1();
 extern void isr2();
@@ -63,6 +63,35 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
+// argument struct for common isr_handler
+typedef struct isr_params {
+  uint32 ds;
+  uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
+  uint32 int_num;
+  uint32 err_code;
+  uint32 eip, cs, eflags, useresp, ss;
+} isr_params_t;
+
+void isr_handler(isr_params_t regs);
+
+// ******************************** irq ************************************* //
+#define IRQ0_INT_NUM 32
+#define IRQ1_INT_NUM 33
+#define IRQ2_INT_NUM 34
+#define IRQ3_INT_NUM 35
+#define IRQ4_INT_NUM 36
+#define IRQ5_INT_NUM 37
+#define IRQ6_INT_NUM 38
+#define IRQ7_INT_NUM 39
+#define IRQ8_INT_NUM 40
+#define IRQ9_INT_NUM 41
+#define IRQ10_INT_NUM 42
+#define IRQ11_INT_NUM 43
+#define IRQ12_INT_NUM 44
+#define IRQ13_INT_NUM 45
+#define IRQ14_INT_NUM 46
+#define IRQ15_INT_NUM 47
+
 extern void irq0 ();
 extern void irq1 ();
 extern void irq2 ();
@@ -80,15 +109,11 @@ extern void irq13();
 extern void irq14();
 extern void irq15();
 
-// argument struct for common isr_handler
-typedef struct interrupt_params {
-  uint32 ds;
-  uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
-  uint32 int_num;
-  uint32 err_code;
-  uint32 eip, cs, eflags, useresp, ss;
-} interrupt_params_t;
+typedef void (*isr_t)(isr_params_t);
 
-void isr_handler(interrupt_params_t regs);
+void enable_interrupt();
+void disable_interrupt();
+
+void register_irq_handler(uint8 n, isr_t handler);
 
 #endif
