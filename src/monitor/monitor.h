@@ -21,23 +21,16 @@
 #define COLOR_LIGHT_BROWN 14
 #define COLOR_LIGHT_WHITE 15
 
-// Write a single character out to the screen.
-void monitor_put(char c);
-
-void monitor_put_with_color(char c, uint8 color);
-
-// Output a null-terminated ASCII string to the monitor.
-void monitor_write(char *c);
-
-void monitor_write_with_color(char *c, uint8 color);
-
-// Output a hex number.
-void monitor_write_hex(uint32 n);
-
-// Output a decimal number.
-void monitor_write_dec(uint32 n);
-
-// Clear the screen to all black.
+// clear the screen
 void monitor_clear();
 
-#endif // MONITOR_H
+// ********************** recommended print APIs **************************** //
+void monitor_print(char* str);
+
+void monitor_println(char* str);
+
+void monitor_printf(char* str, ...);
+
+void monitor_print_with_color(char* str, uint8 color);
+
+#endif

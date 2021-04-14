@@ -1,6 +1,8 @@
 #include "common/io.h"
 #include "monitor/monitor.h"
 
+extern void* get_ebp();
+
 // The VGA framebuffer starts at 0xB8000.
 uint16* video_memory = (uint16*)0xC00B8000;
 // Stores the cursor position.
@@ -48,12 +50,27 @@ static void scroll() {
   }
 }
 
-void monitor_put(char c) {
-  monitor_put_with_color(c, COLOR_WHITE);
+// Clears the screen, by copying lots of spaces to the framebuffer.
+void monitor_clear() {
+  // The attribute byte is made up of two nibbles - the lower being the 
+  // foreground colour, and the upper the background colour.
+  const uint8 attributeByte = ((backColour << 4) | (foreColour & 0x0F));
+  // blank character (black backgroud with nothing)
+  const uint16 blank = (0x20 /* space */ | (attributeByte << 8));
+
+  int i;
+  for (i = 0; i < 80 * 25; i++) {
+    video_memory[i] = blank;
+  }
+
+  // Move the hardware cursor back to the start.
+  cursor_x = 0;
+  cursor_y = 0;
+  move_cursor();
 }
 
 // Writes a single character out to the screen.
-void monitor_put_with_color(char c, uint8 color) {
+void monitor_write_char_with_color(char c, uint8 color) {
   // The attribute byte is made up of two nibbles - the lower being the 
   // foreground colour, and the upper the background colour.
   const uint8 attributeByte = ((backColour << 4) | (color & 0x0F));
@@ -97,41 +114,17 @@ void monitor_put_with_color(char c, uint8 color) {
   move_cursor();
 }
 
-// Clears the screen, by copying lots of spaces to the framebuffer.
-void monitor_clear() {
-  // The attribute byte is made up of two nibbles - the lower being the 
-  // foreground colour, and the upper the background colour.
-  const uint8 attributeByte = ((backColour << 4) | (foreColour & 0x0F));
-  // blank character (black backgroud with nothing)
-  const uint16 blank = (0x20 /* space */ | (attributeByte << 8));
-
-  int i;
-  for (i = 0; i < 80 * 25; i++) {
-    video_memory[i] = blank;
-  }
-
-  // Move the hardware cursor back to the start.
-  cursor_x = 0;
-  cursor_y = 0;
-  move_cursor();
-}
-
-// Outputs a null-terminated ASCII string to the monitor.
-void monitor_write(char *c) {
-  monitor_write_with_color(c, COLOR_WHITE);  
-}
-
-void monitor_write_with_color(char *c, uint8 color) {
+void monitor_write_string_with_color(char *c, uint8 color) {
   int i = 0;
   while (c[i]) {
-    monitor_put_with_color(c[i++], color);
+    monitor_write_char_with_color(c[i++], color);
   }
 }
 
-void monitor_write_hex(uint32 n) {
+void monitor_write_hex_withc_color(uint32 n, uint8 color) {
   int32 tmp;
 
-  monitor_write("0x");
+  monitor_write_string_with_color("0x", color);
 
   char noZeroes = 1;
   int i;
@@ -143,24 +136,24 @@ void monitor_write_hex(uint32 n) {
 
     if (tmp >= 0xA) {
       noZeroes = 0;
-      monitor_put(tmp - 0xA + 'a' );
+      monitor_write_char_with_color(tmp - 0xA + 'a', color);
     } else {
       noZeroes = 0;
-      monitor_put( tmp + '0' );
+      monitor_write_char_with_color(tmp + '0', color);
     }
   }
   
   tmp = n & 0xF;
   if (tmp >= 0xA) {
-    monitor_put (tmp - 0xA + 'a');
+    monitor_write_char_with_color(tmp - 0xA + 'a', color);
   } else {
-    monitor_put (tmp + '0');
+    monitor_write_char_with_color(tmp + '0', color);
   }
 }
 
-void monitor_write_dec(uint32 n) {
+void monitor_write_dec_with_color(uint32 n, uint8 color) {
   if (n == 0) {
-    monitor_put('0');
+    monitor_write_char_with_color('0', color);
     return;
   }
 
@@ -180,5 +173,55 @@ void monitor_write_dec(uint32 n) {
   while(i >= 0) {
     c2[i--] = c[j++];
   }
-  monitor_write(c2);
+  monitor_write_string_with_color(c2, color);
 }
+
+
+void monitor_print(char* str) {
+  monitor_print_with_color(str, COLOR_WHITE);
+}
+
+void monitor_println(char* str) {
+  monitor_print_with_color(str, COLOR_WHITE);
+  monitor_print_with_color("\n", COLOR_WHITE);
+}
+
+void monitor_printf(char* str, ...) {
+  void* ebp = get_ebp();
+  void* arg_ptr = ebp + 12;
+
+  int i = 0;
+  while (1) {
+    char c = str[i];
+    if (c == '\0') {
+      break;
+    }
+
+    if (c == '%') {
+      i++;
+      char next = str[i];
+      if (c == '\0') {
+        break;
+      }
+
+      if (next == 'd') {
+        int int_arg = *((int*)arg_ptr);
+        monitor_write_dec_with_color(int_arg, COLOR_WHITE);
+        arg_ptr += 4;
+      } else if (next == 's') {
+        char* str_arg = *((char**)arg_ptr);
+        monitor_write_string_with_color(str_arg, COLOR_WHITE);
+        arg_ptr += 4;
+      }
+    } else {
+      monitor_write_char_with_color(c, COLOR_WHITE);
+    }
+
+    i++;
+  }
+}
+
+void monitor_print_with_color(char* str, uint8 color) {
+  monitor_write_string_with_color(str, color);
+}
+

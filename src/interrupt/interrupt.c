@@ -85,9 +85,7 @@ static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs) {
 
 void isr_handler(isr_params_t params) {
   if (params.int_num < 32) {
-    monitor_write("recieved interrupt: ");
-    monitor_write_dec(params.int_num);
-    monitor_write("\n");
+    monitor_printf("recieved interrupt: %d\n", params.int_num);
   } else {
     irq_handler_common(params);
   }
@@ -121,7 +119,7 @@ void disable_interrupt() {
 }
 
 static void irq_handler_common(isr_params_t params) {
-  // send an EOI (end of interrupt) signal to the PICs
+  // send an EOI signal to the PICs
   if (params.int_num >= 40) {
     // send reset signal to slave.
     outb(0xA0, 0x20);
@@ -133,7 +131,7 @@ static void irq_handler_common(isr_params_t params) {
     isr_t handler = irq_handlers[params.int_num];
     handler(params);
   } else {
-    monitor_write("unkown interrupt");
+    monitor_printf("unkown interrupt: %d\n", params.int_num);
   }
 }
 

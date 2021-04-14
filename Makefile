@@ -8,6 +8,7 @@ OBJS_C = \
 	$(OBJ_DIR)/common/io.o \
 	$(OBJ_DIR)/common/stdlib.o \
 	$(OBJ_DIR)/common/global.o \
+	$(OBJ_DIR)/common/util.o \
 	$(OBJ_DIR)/monitor/monitor.o \
 	$(OBJ_DIR)/interrupt/interrupt.o \
 	$(OBJ_DIR)/interrupt/idt.o \
@@ -60,6 +61,10 @@ $(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c $(SRC_DIR)/common/%.h
 	mkdir -p $(OBJ_DIR)/common
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
+$(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.S
+	mkdir -p $(OBJ_DIR)/interrupt
+	$(ASM) $(ASFLAGS) $< -o $@
+
 $(OBJ_DIR)/monitor/%.o: $(SRC_DIR)/monitor/%.c
 	mkdir -p $(OBJ_DIR)/monitor
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
@@ -82,4 +87,4 @@ $(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.S
 
 
 clean:
-	rm -rf ${OBJ_DIR}/* ${BIN_DIR}/* scroll.img bochsout.txt
+	rm -rf ${OBJ_DIR}/* ${BIN_DIR}/* scroll.img bochsout.txt kernel_dump.txt
