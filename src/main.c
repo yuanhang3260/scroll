@@ -10,21 +10,14 @@ void print_shell() {
   monitor_print(" > ");
 }
 
-uint64 foo(char a, uint16 b, uint32 c, uint64 d) {
-  uint64 e = a + b + c + d;
-  return e;
-}
-
 int main() {
   monitor_clear();
   monitor_println(welcome);
   //print_shell();
 
   init_idt();
-  enable_interrupt();
-  init_timer(TIMER_FREQUENCY);
-
-  uint64 e = foo('x', 1, 2, 3L);
+  //enable_interrupt();
+  //init_timer(TIMER_FREQUENCY);
 
   while(1) {}
 }

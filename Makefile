@@ -13,6 +13,8 @@ OBJS_C = \
 	$(OBJ_DIR)/interrupt/interrupt.o \
 	$(OBJ_DIR)/interrupt/idt.o \
 	$(OBJ_DIR)/interrupt/timer.o \
+	$(OBJ_DIR)/mem/paging.o \
+	$(OBJ_DIR)/utils/bitmap.o \
 
 OBJS_ASM = \
 
@@ -83,6 +85,30 @@ $(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.c $(SRC_DIR)/interrupt/%.h
 
 $(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.S
 	mkdir -p $(OBJ_DIR)/interrupt
+	$(ASM) $(ASFLAGS) $< -o $@
+
+$(OBJ_DIR)/mem/%.o: $(SRC_DIR)/mem/%.c
+	mkdir -p $(OBJ_DIR)/mem
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/mem/%.o: $(SRC_DIR)/mem/%.c $(SRC_DIR)/mem/%.h
+	mkdir -p $(OBJ_DIR)/mem
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/mem/%.o: $(SRC_DIR)/mem/%.S
+	mkdir -p $(OBJ_DIR)/mem
+	$(ASM) $(ASFLAGS) $< -o $@
+
+$(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c
+	mkdir -p $(OBJ_DIR)/utils
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c $(SRC_DIR)/utils/%.h
+	mkdir -p $(OBJ_DIR)/utils
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.S
+	mkdir -p $(OBJ_DIR)/utils
 	$(ASM) $(ASFLAGS) $< -o $@
 
 

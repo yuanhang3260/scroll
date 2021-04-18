@@ -85,7 +85,7 @@ static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs) {
 
 void isr_handler(isr_params_t params) {
   if (params.int_num < 32) {
-    monitor_printf("recieved interrupt: %d\n", params.int_num);
+    monitor_printf("received interrupt: %d\n", params.int_num);
   } else {
     irq_handler_common(params);
   }
