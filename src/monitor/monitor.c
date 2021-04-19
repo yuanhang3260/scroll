@@ -208,6 +208,10 @@ void monitor_printf(char* str, ...) {
         int int_arg = *((int*)arg_ptr);
         monitor_write_dec_with_color(int_arg, COLOR_WHITE);
         arg_ptr += 4;
+      } else if (next == 'x') {
+        int int_arg = *((int*)arg_ptr);
+        monitor_write_hex_withc_color(int_arg, COLOR_WHITE);
+        arg_ptr += 4;
       } else if (next == 's') {
         char* str_arg = *((char**)arg_ptr);
         monitor_write_string_with_color(str_arg, COLOR_WHITE);
