@@ -6,11 +6,12 @@
 
 extern void reload_idt(uint32);
 static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs);
-static void irq_handler_common(isr_params_t params);
 static void init_pic();
 
 idt_ptr_t idt_ptr;
 static idt_entry_t idt_entries[256];
+
+static isr_t interrupt_handlers[256];
 
 void init_idt() {
   idt_ptr.limit = sizeof(idt_entry_t) * 256 - 1;
@@ -85,14 +86,37 @@ static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs) {
 
 void isr_handler(isr_params_t params) {
   uint32 int_num = params.int_num;
-  if (int_num < 32) {
-    monitor_printf("received interrupt: %d\n", int_num);
-    if (int_num == 14) {
-      
+
+  // send an EOI signal to the PICs for external interrupts
+  if (int_num >= 32) {
+    if (int_num >= 40) {
+      // send reset signal to slave
+      outb(0xA0, 0x20);
     }
-  } else {
-    irq_handler_common(params);
+    // send reset signal to master
+    outb(0x20, 0x20);
   }
+
+  // handle interrupt
+  if (interrupt_handlers[int_num] != 0) {
+    isr_t handler = interrupt_handlers[int_num];
+    handler(params);
+  } else {
+    monitor_printf("unkown interrupt: %d\n", int_num);
+  }
+}
+
+void register_interrupt_handler(uint8 n, isr_t handler) {
+  interrupt_handlers[n] = handler;
+}
+
+// ******************************** irq ************************************* //
+void enable_interrupt() {
+  asm volatile ("sti");
+}
+
+void disable_interrupt() {
+  asm volatile ("cli");
 }
 
 static void init_pic() {
@@ -109,36 +133,4 @@ static void init_pic() {
   // unmask all irqs
   outb(0x21, 0x0);
   outb(0xA1, 0x0);
-}
-
-// ******************************** irq ************************************* //
-isr_t irq_handlers[256];
-
-void enable_interrupt() {
-  asm volatile ("sti");
-}
-
-void disable_interrupt() {
-  asm volatile ("cli");
-}
-
-static void irq_handler_common(isr_params_t params) {
-  // send an EOI signal to the PICs
-  if (params.int_num >= 40) {
-    // send reset signal to slave.
-    outb(0xA0, 0x20);
-  }
-  // send reset signal to master.
-  outb(0x20, 0x20);
-
-  if (irq_handlers[params.int_num] != 0) {
-    isr_t handler = irq_handlers[params.int_num];
-    handler(params);
-  } else {
-    monitor_printf("unkown interrupt: %d\n", params.int_num);
-  }
-}
-
-void register_irq_handler(uint8 n, isr_t handler) {
-  irq_handlers[n] = handler;
 }

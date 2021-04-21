@@ -14,6 +14,7 @@
 
 
 #define KERNEL_PAGE_DIR_VIRTUAL_ADDR  0xC0400000
+#define KERNEL_PAGE_DIR_VIRTUAL_ADDR  0xC0400000
 
 // ************************************************************************** //
 // 4 byte

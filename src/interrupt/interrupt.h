@@ -72,7 +72,9 @@ typedef struct isr_params {
   uint32 eip, cs, eflags, useresp, ss;
 } isr_params_t;
 
+typedef void (*isr_t)(isr_params_t);
 void isr_handler(isr_params_t regs);
+void register_interrupt_handler(uint8 n, isr_t handler);
 
 // ******************************** irq ************************************* //
 #define IRQ0_INT_NUM 32
@@ -109,11 +111,7 @@ extern void irq13();
 extern void irq14();
 extern void irq15();
 
-typedef void (*isr_t)(isr_params_t);
-
 void enable_interrupt();
 void disable_interrupt();
-
-void register_irq_handler(uint8 n, isr_t handler);
 
 #endif

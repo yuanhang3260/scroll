@@ -19,8 +19,9 @@ int main() {
   //enable_interrupt();
   //init_timer(TIMER_FREQUENCY);
 
+  init_paging();
   uint32 *ptr = (uint32*)0xC0900000;
-  uint32 do_page_fault = *ptr;
+  *ptr = 1;
 
   while(1) {}
 }

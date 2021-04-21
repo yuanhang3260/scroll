@@ -14,7 +14,7 @@ static void timer_callback(isr_params_t regs) {
 
 void init_timer(uint32 frequency){
   // register our timer callback.
-  register_irq_handler(IRQ0_INT_NUM, &timer_callback);
+  register_interrupt_handler(IRQ0_INT_NUM, &timer_callback);
 
   // the divisor must be small enough to fit into 16-bits.
   uint32 divisor = 1193180 / frequency;

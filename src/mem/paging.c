@@ -31,7 +31,7 @@ void init_paging() {
   current_page_directory = &kernel_page_directory;
 
   // register page fault handler
-  register_irq_handler(14, page_fault_handler);
+  register_interrupt_handler(14, page_fault_handler);
 }
 
 int32 allocate_phy_frame() {
@@ -50,9 +50,11 @@ void release_phy_frame(uint32 frame) {
 void switch_page_directory(page_directory_t *dir) {
   current_page_directory = dir;
   asm volatile("mov %0, %%cr3":: "r"(&dir->page_directory_entries));
+
+  // enable paging!
   uint32 cr0;
   asm volatile("mov %%cr0, %0": "=r"(cr0));
-  cr0 |= 0x80000000; // Enable paging!
+  cr0 |= 0x80000000;
   asm volatile("mov %0, %%cr0":: "r"(cr0));
 }
 
@@ -73,8 +75,14 @@ void page_fault_handler(isr_params_t params) {
   // caused by an instruction fetch?
   int id = params.err_code & 0x10;
 
-   // handle page fault
+  // handle page fault
   monitor_printf(
-    "page fault! (present %d, write %d, user-mode %d, reserved %d, at 0x%x\n",
-    present, rw, user_mode, reserved, faulting_address);
+    "page fault: %x, present %d, write %d, user-mode %d, reserved %d\n",
+    faulting_address, present, rw, user_mode, reserved);
+
+  PANIC();
+}
+
+static void allcoate_page(uint32 virtual_addr) {
+  uint32 pde_index = virtual_addr >> 22;
 }
