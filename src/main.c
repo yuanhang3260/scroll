@@ -2,8 +2,12 @@
 #include "monitor/monitor.h"
 #include "interrupt/timer.h"
 #include "interrupt/interrupt.h"
+#include "mem/paging.h"
 
 char* welcome = "# welcome to scroll kernel #";
+
+int arrayx[10];
+double arrayy[10];
 
 void print_shell() {
   monitor_print_with_color("bash", COLOR_GREEN);

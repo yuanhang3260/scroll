@@ -13,10 +13,20 @@
   (KERNEL_VIRTUAL_ADDR_START + KERNEL_SIZE_MAX)
 
 
-#define KERNEL_PAGE_DIR_VIRTUAL_ADDR  0xC0400000
-#define KERNEL_PAGE_DIR_VIRTUAL_ADDR  0xC0400000
+// ********************* virtual memory layout *********************************
+// 0xC0000000 ... 0xC0100000 ... 0xC0400000  boot & reserverd                4MB
+// 0xC0400000 ... 0xC0800000 page tables, 0xC0401000 page directory          4MB
+// 0xC0800000 ... 0xC0900000 kernel load                                     1MB
+#define PAGE_DIR_VIRTUAL        0xC0401000
+#define PAGE_TABLES_VIRTUAL     0xC0400000
 
-// ************************************************************************** //
+// ********************* physical memory layout ********************************
+// 0x00000000 ... 0x00100000  boot & reserved                                1MB
+// 0x00100000 ... 0x00200000  kernel page tables                             1MB
+// 0x00200000 ... 0x00300000  kernel load                                    1MB
+#define KERNEL_PAGE_DIR_PHY      0x00100000
+
+// *****************************************************************************
 // 4 byte
 typedef struct page_table_entry {
   uint32 present    : 1;   // Page present in memory
@@ -31,17 +41,12 @@ typedef struct page_table_entry {
 typedef pte_t pde_t;
 
 // 4KB
-typedef struct page_table {
-  pte_t* page_table_entries;  // [1024]
-} page_table_t;
-
-// 4KB
 typedef struct page_directory {
-  pde_t* page_directory_entries;  // [1024]
+  pde_t* page_dir_entries_phy;  // [1024]
 } page_directory_t;
 
 
-// ************************************************************************** //
+// *****************************************************************************
 void init_paging();
 
 void* alloc_kernel_placement_addr(uint32 size);

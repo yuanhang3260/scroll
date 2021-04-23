@@ -229,7 +229,8 @@ void monitor_print_with_color(char* str, uint8 color) {
   monitor_write_string_with_color(str, color);
 }
 
-void oh_panic(const char* file, const char* func, int line) {
-  monitor_printf("PANIC! %s, %s(), line %d", file, func, line);
+void oh_panic(const char* file, const char* func, int line, const char* msg) {
+  monitor_print_with_color("PANIC!", COLOR_LIGHT_RED);
+  monitor_printf(" %s, %s(), line %d: %s\n", file, func, line, msg);
   while (1) {}
 }

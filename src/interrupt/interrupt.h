@@ -4,7 +4,7 @@
 #include "common/common.h"
 #include "common/global.h"
 
-// ******************************** idt ************************************* //
+// ******************************** idt ****************************************
 struct idt_entry_struct {
   // the lower 16 bits of the handler address
   uint16 handler_addr_low;
@@ -29,7 +29,7 @@ typedef struct idt_ptr_struct idt_ptr_t;
 
 void init_idt();
 
-// ******************************** isr ************************************* //
+// ******************************** isr ****************************************
 extern void isr0();
 extern void isr1();
 extern void isr2();
@@ -76,7 +76,7 @@ typedef void (*isr_t)(isr_params_t);
 void isr_handler(isr_params_t regs);
 void register_interrupt_handler(uint8 n, isr_t handler);
 
-// ******************************** irq ************************************* //
+// ******************************** irq ****************************************
 #define IRQ0_INT_NUM 32
 #define IRQ1_INT_NUM 33
 #define IRQ2_INT_NUM 34

@@ -110,7 +110,7 @@ void register_interrupt_handler(uint8 n, isr_t handler) {
   interrupt_handlers[n] = handler;
 }
 
-// ******************************** irq ************************************* //
+// ******************************** irq ****************************************
 void enable_interrupt() {
   asm volatile ("sti");
 }
