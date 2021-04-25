@@ -15,6 +15,7 @@ OBJS_C = \
 	$(OBJ_DIR)/interrupt/timer.o \
 	$(OBJ_DIR)/mem/paging.o \
 	$(OBJ_DIR)/utils/bitmap.o \
+	$(OBJ_DIR)/utils/ordered_array.o \
 
 OBJS_ASM = \
 

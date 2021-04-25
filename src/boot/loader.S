@@ -474,6 +474,7 @@ do_load_kernel:
   add ebx, edx
   loop .load_each_segment
 
+  ; return the kernel entry address
   mov eax, [KERNEL_BIN_LOAD_VIRTUAL_ADDR + 24]
   ret
 

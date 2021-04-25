@@ -14,6 +14,15 @@ void print_shell() {
   monitor_print(" > ");
 }
 
+void memory_killer() {
+  uint32 *ptr = (uint32*)KERNEL_PLACEMENT_ADDR_START;
+  //uint32 *ptr = (uint32*)(1024*1024);
+  while(1) {
+    *ptr = 3;
+    ptr += 1;
+  }
+}
+
 int main() {
   monitor_clear();
   monitor_println(welcome);
@@ -24,8 +33,7 @@ int main() {
   //init_timer(TIMER_FREQUENCY);
 
   init_paging();
-  uint32 *ptr = (uint32*)0xC0900000;
-  *ptr = 1;
+  memory_killer();
 
   while(1) {}
 }

@@ -205,11 +205,15 @@ void monitor_printf(char* str, ...) {
       }
 
       if (next == 'd') {
-        int int_arg = *((int*)arg_ptr);
+        int32 int_arg = *((int32*)arg_ptr);
+        monitor_write_dec_with_color(int_arg, COLOR_WHITE);
+        arg_ptr += 4;
+      } else if (next == 'u') {
+        uint32 int_arg = *((uint32*)arg_ptr);
         monitor_write_dec_with_color(int_arg, COLOR_WHITE);
         arg_ptr += 4;
       } else if (next == 'x') {
-        int int_arg = *((int*)arg_ptr);
+        uint32 int_arg = *((uint32*)arg_ptr);
         monitor_write_hex_withc_color(int_arg, COLOR_WHITE);
         arg_ptr += 4;
       } else if (next == 's') {
@@ -229,8 +233,8 @@ void monitor_print_with_color(char* str, uint8 color) {
   monitor_write_string_with_color(str, color);
 }
 
-void oh_panic(const char* file, const char* func, int line, const char* msg) {
+void oh_panic(const char* file, const char* func, int line) {
   monitor_print_with_color("PANIC!", COLOR_LIGHT_RED);
-  monitor_printf(" %s, %s(), line %d: %s\n", file, func, line, msg);
+  monitor_printf(" %s, %s(), line %d\n", file, func, line);
   while (1) {}
 }

@@ -3,32 +3,36 @@
 #define INDEX_FROM_BIT(a) (a/32)
 #define OFFSET_FROM_BIT(a) (a%32)
 
-static uint32 out_of_range(bitmap_t* bitmap, uint32 bit) {
-  return bit >= bitmap->total_bits;
+bitmap_t bitmap_create(uint32* array, int total_bits) {
+  bitmap_t ret;
+  ret.array = array;
+  ret.total_bits = total_bits;
+  ret.array_size = total_bits / 32;
+  return ret;
 }
 
-void set_bit(bitmap_t* bitmap, uint32 bit) {
+void bitmap_set_bit(bitmap_t* this, uint32 bit) {
   uint32 idx = INDEX_FROM_BIT(bit);
   uint32 off = OFFSET_FROM_BIT(bit);
-  bitmap->array[idx] |= (0x1 << off);
+  this->array[idx] |= (0x1 << off);
 }
 
-void clear_bit(bitmap_t* bitmap, uint32 bit) {
+void bitmap_clear_bit(bitmap_t* this, uint32 bit) {
   uint32 idx = INDEX_FROM_BIT(bit);
   uint32 off = OFFSET_FROM_BIT(bit);
-  bitmap->array[idx] &= ~(0x1 << off);
+  this->array[idx] &= ~(0x1 << off);
 }
 
-uint32 test_bit(bitmap_t* bitmap, uint32 bit) {
+uint32 bitmap_test_bit(bitmap_t* this, uint32 bit) {
   uint32 idx = INDEX_FROM_BIT(bit);
   uint32 off = OFFSET_FROM_BIT(bit);
-  return (bitmap->array[idx] & (0x1 << off));
+  return (this->array[idx] & (0x1 << off));
 }
 
-uint32 find_first_free(bitmap_t* bitmap, uint32* bit) {
+uint32 bitmap_find_first_free(bitmap_t* this, uint32* bit) {
   uint32 i, j;
-  for (i = 0; i < bitmap->total_bits; i++) {
-    uint32 ele = bitmap->array[i];
+  for (i = 0; i < this->array_size; i++) {
+    uint32 ele = this->array[i];
     if (ele != 0xFFFFFFFF) {
       for (j = 0; j < 32; j++) {
         if (!(ele & (0x1 << j))) {
@@ -42,12 +46,12 @@ uint32 find_first_free(bitmap_t* bitmap, uint32* bit) {
   return 0;
 }
 
-uint32 allocate_first_free(bitmap_t* bitmap, uint32* bit) {
-  uint32 success = find_first_free(bitmap, bit);
+uint32 bitmap_allocate_first_free(bitmap_t* this, uint32* bit) {
+  uint32 success = bitmap_find_first_free(this, bit);
   if (!success) {
     return 0;
   }
 
-  set_bit(bitmap, *bit);
+  bitmap_set_bit(this, *bit);
   return 1;
 }

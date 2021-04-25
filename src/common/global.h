@@ -28,8 +28,4 @@
 #define IDT_GATE_ATTR_DPL3 \
   ((IDT_GATE_P << 7) + (IDT_GATE_DPL3 << 5) + IDT_GATE_32_TYPE)
 
-
-// ****************************** memory ************************************ //
-#define PHYSICAL_MEM_SIZE 33554432  // 32MB
-
 #endif
