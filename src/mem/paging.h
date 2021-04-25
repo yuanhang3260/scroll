@@ -6,6 +6,8 @@
 #include "utils/bitmap.h"
 #include "interrupt/interrupt.h"
 
+#define PAGE_SIZE  4096
+
 // ********************* virtual memory layout *********************************
 // 0xC0000000 ... 0xC0100000 ... 0xC0400000  boot & reserverd                4MB
 // 0xC0400000 ... 0xC0800000 page tables, 0xC0701000 page directory          4MB

@@ -1,5 +1,6 @@
 #include "mem/paging.h"
 #include "monitor/monitor.h"
+#include "utils/debug.h"
 
 // 0xC0900000
 void* kernel_placement_addr = (void*)KERNEL_PLACEMENT_ADDR_START;
@@ -11,7 +12,7 @@ page_directory_t kernel_page_directory;
 page_directory_t *current_page_directory = 0;
 
 static bitmap_t phy_frames_map;
-uint32 bitarray[PHYSICAL_MEM_SIZE / 4096 / 32];
+uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
 
 static void allcoate_page(uint32 virtual_addr);
 static void release_page(uint32 virtual_addr);
@@ -28,10 +29,10 @@ void init_paging() {
   // phyical memory for kernel initialization.
   //
   // totally 8192 frames
-  for (int i = 0; i < 3 * 1024 * 1024 / 4096 / 32; i++) {
+  for (int i = 0; i < 3 * 1024 * 1024 / PAGE_SIZE / 32; i++) {
     bitarray[i] = 0xFFFFFFFF;
   }
-  phy_frames_map = bitmap_create(bitarray, PHYSICAL_MEM_SIZE / 4096);
+  phy_frames_map = bitmap_create(bitarray, PHYSICAL_MEM_SIZE / PAGE_SIZE);
 
   // Initialize page directory.
   kernel_page_directory.page_dir_entries_phy = (pde_t*)KERNEL_PAGE_DIR_PHY;
@@ -39,7 +40,7 @@ void init_paging() {
 
   // Release memory for loading kernel binany - it's no longer needed.
   release_pages(0xFFFFFFFF - KERNEL_BIN_LOAD_SIZE + 1,
-      KERNEL_BIN_LOAD_SIZE / 4096);
+      KERNEL_BIN_LOAD_SIZE / PAGE_SIZE);
 
   // Register page fault handler.
   register_interrupt_handler(14, page_fault_handler);
@@ -152,9 +153,9 @@ static void release_page(uint32 virtual_addr) {
 }
 
 static void release_pages(uint32 virtual_addr, int pages) {
-  virtual_addr = (virtual_addr / 4096) * 4096;
+  virtual_addr = (virtual_addr / PAGE_SIZE) * PAGE_SIZE;
   for (int i = 0; i < pages; i++) {
     uint32 pde_index = virtual_addr >> 12;
-    release_page(virtual_addr + i * 4096);
+    release_page(virtual_addr + i * PAGE_SIZE);
   }
 }

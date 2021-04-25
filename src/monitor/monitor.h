@@ -21,8 +21,6 @@
 #define COLOR_LIGHT_BROWN 14
 #define COLOR_LIGHT_WHITE 15
 
-#define PANIC() oh_panic(__FILE__, __FUNCTION__, __LINE__)
-
 // clear the screen
 void monitor_clear();
 
@@ -34,7 +32,5 @@ void monitor_println(char* str);
 void monitor_printf(char* str, ...);
 
 void monitor_print_with_color(char* str, uint8 color);
-
-void oh_panic(const char* file, const char* func, int line);
 
 #endif
