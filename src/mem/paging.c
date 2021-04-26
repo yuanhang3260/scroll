@@ -39,8 +39,7 @@ void init_paging() {
   current_page_directory = &kernel_page_directory;
 
   // Release memory for loading kernel binany - it's no longer needed.
-  release_pages(0xFFFFFFFF - KERNEL_BIN_LOAD_SIZE + 1,
-      KERNEL_BIN_LOAD_SIZE / PAGE_SIZE);
+  release_pages(0xFFFFFFFF - KERNEL_BIN_LOAD_SIZE + 1, KERNEL_BIN_LOAD_SIZE / PAGE_SIZE);
 
   // Register page fault handler.
   register_interrupt_handler(14, page_fault_handler);

@@ -18,8 +18,7 @@ typedef struct ordered_array {
 
 int8 standard_comparator(type_t a, type_t b);
 
-ordered_array_t ordered_array_create(
-    type_t* array, uint32 max_size, comparator_t comparator);
+ordered_array_t ordered_array_create(type_t* array, uint32 max_size, comparator_t comparator);
 
 // Return 1 for success, or 0 for failure
 int32 ordered_array_insert(ordered_array_t *this, type_t item);
