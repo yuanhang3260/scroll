@@ -247,7 +247,7 @@ void *alloc(kheap_t *this, uint32 size, uint8 page_align) {
   }
   
   // done
-  return (void*)((uint32)block_header + HEADER_SIZE);
+  return (void*)((uint32)selected_hole_header + HEADER_SIZE);
 }
 
 void free(void *p, heap_t *heap)
