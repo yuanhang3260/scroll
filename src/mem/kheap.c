@@ -120,13 +120,15 @@ static int32 find_smallest_hole(kheap_t *this, uint32 size, uint8 page_align) {
       // |..................|..................|..................|  page align
       //      |h| data  |f|h| data |f|
       uint32 start = (uint32)header + HEADER_SIZE;
-      uint32 next_page_align_addr = start;
+      uint32 next_page_align = start;
       if (start & 0xFFF != 0) {
-        next_page_align_addr = (start & 0xFFFFF000) + PAGE_SIZE;
+        next_page_align = (start & 0xFFFFF000) + PAGE_SIZE;
       }
-      if (next_page_align_addr < start + header->size &&
-            next_page_align_addr - start > BLOCK_META_SIZE) {
-        return i;
+      while (next_page_align < start + header->size) {
+        if (next_page_align - start > BLOCK_META_SIZE) {
+          return i;
+        }
+        next_page_align += PAGE_SIZE;
       }
     } else if (header->size >= size) {
       return i;
