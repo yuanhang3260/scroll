@@ -6,9 +6,12 @@ static kheap_t *kheap = 0;
 
 #define HEADER_SIZE (sizeof(kheap_block_header_t))
 #define FOOTER_SIZE (sizeof(kheap_block_footer_t))
-#define BLOCK_META_SIZE \
-    (sizeof(kheap_block_header_t) + sizeof(kheap_block_footer_t))
+#define BLOCK_META_SIZE (sizeof(kheap_block_header_t) + sizeof(kheap_block_footer_t))
 
+#define IS_HOLE   1
+#define NOT_HOLE  0
+
+// ************************************************************************
 static void* kmalloc_impl(uint32 size, int align) {
   return alloc(kheap, size, (uint8)align);
 }
@@ -26,14 +29,12 @@ void kfree(void *p) {
 }
 
 static void kheap_expand(kheap_t *this, uint32 new_size) {
-  // Sanity check.
-  ASSERT(new_size > this->end_address - this->start_address);
-
   // Make it page aligned.
   if (new_size & 0xFFFFF000 != 0) {
-    new_size &= 0xFFFFF000;
-    new_size += PAGE_SIZE;
+    new_size = (new_size & 0xFFFFF000) + PAGE_SIZE;
   }
+
+  ASSERT(new_size > this->size);
 
   uint32 new_end = this->start_address + new_size;
   ASSERT(new_end <= this->max_address);
@@ -42,15 +43,13 @@ static void kheap_expand(kheap_t *this, uint32 new_size) {
 }
 
 static uint32 kheap_contract(kheap_t *this, uint32 new_size) {
-  // Sanity check.
-  ASSERT(new_size < this->end_address - this->start_address);
-
-  // TODO: ?
   // Get the nearest following page boundary.
-  if (new_size & PAGE_SIZE) {
-    new_size &= PAGE_SIZE;
-    new_size += PAGE_SIZE;
+  if (new_size & 0xFFFFF000 != 0) {
+    new_size = (new_size & 0xFFFFF000) + PAGE_SIZE;
   }
+
+  // Sanity check.
+  ASSERT(new_size < this->size);
 
   if (new_size < HEAP_MIN_SIZE) {
     new_size = HEAP_MIN_SIZE;
@@ -61,29 +60,20 @@ static uint32 kheap_contract(kheap_t *this, uint32 new_size) {
   return new_size;
 }
 
-// Find the smallest hole that will fit.
-static int32 find_smallest_hole(kheap_t *this, uint32 size, uint8 page_align) {
-  uint32 iterator = 0;
-  for (int i = 0; i < this->index.size; i++) {
-    kheap_block_header_t* header = (kheap_block_header_t*)ordered_array_get(&this->index, i);
-    if (page_align) {
-      // align the starting point.
-      uint32 start = (uint32)header + HEADER_SIZE;
-      uint32 offset = 0;
-      if (start & 0xFFFFF000 != 0) {
-        offset = PAGE_SIZE - start % PAGE_SIZE;
-      }
+static kheap_block_header_t* make_block(uint32 start, uint32 end, uint8 is_hole) {
+  int32 size = end - start - BLOCK_META_SIZE;
+  ASSERT(size > 0);
 
-      int32 hole_size = (int32)header->size - offset;
-      if (hole_size >= (int32)size) {
-        return i;
-      }
-    } else if (header->size >= size) {
-      return i;
-    }
-  }
+  kheap_block_header_t* block_header = (kheap_block_header_t*)start;
+  block_header->magic = HEAP_MAGIC;
+  block_header->size = size;
+  block_header->is_hole = is_hole;
 
-  return -1;
+  kheap_block_footer_t* block_footer = (kheap_block_footer_t*)(end - FOOTER_SIZE);
+  block_footer->magic = HEAP_MAGIC;
+  block_footer->header = block_header;
+
+  return block_header;
 }
 
 static int8 kheap_block_comparator(void* x, void * y) {
@@ -93,8 +83,8 @@ static int8 kheap_block_comparator(void* x, void * y) {
 }
 
 kheap_t create_kheap(uint32 start, uint32 end, uint32 max, uint8 supervisor, uint8 readonly) {
-  ASSERT(start % PAGE_SIZE == 0);
-  ASSERT(end % PAGE_SIZE == 0);
+  ASSERT(start & 0xFFF == 0);
+  ASSERT(end & 0xFFF == 0);
 
   kheap_t kheap;
 
@@ -103,7 +93,7 @@ kheap_t create_kheap(uint32 start, uint32 end, uint32 max, uint8 supervisor, uin
       (type_t*)start, HEAP_INDEX_NUM, &kheap_block_comparator);
 
   // Shift the start address forward to resemble where we can start putting data.
-  start += (sizeof(type_t) * HEAP_INDEX_NUM);
+  start += ((sizeof(type_t) * HEAP_INDEX_NUM));
 
   // Write the start, end and max addresses into the heap structure.
   kheap.start_address = start;
@@ -114,26 +104,36 @@ kheap_t create_kheap(uint32 start, uint32 end, uint32 max, uint8 supervisor, uin
   kheap.readonly = readonly;
 
   // Start off with one large hole in the index.
-  kheap_block_header_t* hole = (kheap_block_header_t*)start;
-  hole->size = end - start;
-  hole->magic = HEAP_MAGIC;
-  hole->is_hole = 1;
-  ordered_array_insert(&kheap.index, (void*)hole);
+  make_block(start, end, IS_HOLE);
+  ordered_array_insert(&kheap.index, (type_t)start);
 
   return kheap;
 }
 
-static kheap_block_header_t* make_block(uint32 start, uint32 size, uint8 is_hole) {
-  kheap_block_header_t* block_header = (kheap_block_header_t*)start;
-  block_header->magic = HEAP_MAGIC;
-  block_header->size = size;
-  block_header->is_hole = is_hole;
+// Find the smallest hole that fits.
+static int32 find_smallest_hole(kheap_t *this, uint32 size, uint8 page_align) {
+  uint32 iterator = 0;
+  for (int i = 0; i < this->index.size; i++) {
+    kheap_block_header_t* header = (kheap_block_header_t*)ordered_array_get(&this->index, i);
+    if (page_align) {
+      // Align the starting point.
+      // |..................|..................|..................|  page align
+      //      |h| data  |f|h| data |f|
+      uint32 start = (uint32)header + HEADER_SIZE;
+      uint32 next_page_align_addr = start;
+      if (start & 0xFFF != 0) {
+        next_page_align_addr = (start & 0xFFFFF000) + PAGE_SIZE;
+      }
+      if (next_page_align_addr < start + header->size &&
+            next_page_align_addr - start > BLOCK_META_SIZE) {
+        return i;
+      }
+    } else if (header->size >= size) {
+      return i;
+    }
+  }
 
-  kheap_block_footer_t* block_footer = (kheap_block_footer_t*)(start + size - FOOTER_SIZE);
-  block_footer->magic = HEAP_MAGIC;
-  block_footer->header = block_header;
-
-  return block_header;
+  return -1;
 }
 
 void *alloc(kheap_t *this, uint32 size, uint8 page_align) {
@@ -159,12 +159,12 @@ void *alloc(kheap_t *this, uint32 size, uint8 page_align) {
     uint32 extended_size = new_capacity - old_capacity;
     // If there is no free hole, we need to add one.
     if (last_block_idx == -1) {
-      kheap_block_header_t* new_header = make_block(old_end_address, extended_size, 1);
+      kheap_block_header_t* new_header = make_block(old_end_address, extended_size, IS_HOLE);
       ordered_array_insert(&kheap->index, (type_t)new_header);
     } else {
       // Extend the last hole.
       kheap_block_header_t *header = lookup_ordered_array(&this->index, last_block_idx);
-      make_block((uint32)header, header->size + extended_size, 1);
+      make_block((uint32)header, header->size + extended_size, IS_HOLE);
     }
 
     // Now try alloc again.
@@ -187,7 +187,7 @@ void *alloc(kheap_t *this, uint32 size, uint8 page_align) {
     // |..................|..................|..................|  page align
     //      |h| data  |f|h| data |f|
     uint32 cutSize = PAGE_SIZE - (header_pos & 0xFFF) - HEADER_SIZE;
-    kheap_block_header_t* cut_hole_header = make_block(header_pos, cutSize, 1);
+    kheap_block_header_t* cut_hole_header = make_block(header_pos, cutSize, IS_HOLE);
 
     // uint32 new_block_end =
     //     (header_pos & 0xFFFFF000) + PAGE_SIZE - HEADER_SIZE;
@@ -207,7 +207,7 @@ void *alloc(kheap_t *this, uint32 size, uint8 page_align) {
   }
 
   // use this block
-  kheap_block_header_t* selected_hole_header = make_block(header_pos, requested_size, 0);
+  kheap_block_header_t* selected_hole_header = make_block(header_pos, requested_size, NOT_HOLE);
 
   // kheap_block_header_t* block_header = (kheap_block_header_t*)header_pos;
   // block_header->magic = HEAP_MAGIC;
@@ -226,7 +226,7 @@ void *alloc(kheap_t *this, uint32 size, uint8 page_align) {
     ASSERT(remain_size > BLOCK_META_SIZE);
 
     kheap_block_header_t* remain_hole_header =
-        make_block(header_pos + BLOCK_META_SIZE + size, remaining_size, 1);
+        make_block(header_pos + BLOCK_META_SIZE + size, remaining_size, IS_HOLE);
 
     // kheap_block_header_t *new_hole_header =
     //     (kheap_block_header_t*)(header_pos + BLOCK_META_SIZE + size);
