@@ -16,13 +16,7 @@ uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
 
 static void allcoate_page(uint32 virtual_addr);
 static void release_page(uint32 virtual_addr);
-static void release_pages(uint32 virtual_addr, int pages);
-
-void* alloc_kernel_placement_addr(uint32 size) {
-  void* result = kernel_placement_addr;
-  kernel_placement_addr += size;
-  return result;
-}
+static void release_pages(uint32 virtual_addr, uint32 pages);
 
 void init_paging() {
   // Initialize phy_frames_map. Note we have already used the first 3MB
@@ -69,6 +63,10 @@ void switch_page_directory(page_directory_t *dir) {
   asm volatile("mov %0, %%cr0":: "r"(cr0));
 }
 
+void reload_page_table(page_directory_t *dir) {
+  asm volatile("mov %0, %%cr3":: "r"(dir->page_dir_entries_phy));
+}
+
 void page_fault_handler(isr_params_t params) {
   // The faulting address is stored in the CR2 register
   uint32 faulting_address;
@@ -92,6 +90,7 @@ void page_fault_handler(isr_params_t params) {
   //  faulting_address, present, rw, user_mode, reserved);
 
   allcoate_page(faulting_address);
+  reload_page_table(current_page_directory);
 }
 
 static void allcoate_page(uint32 virtual_addr) {
@@ -151,10 +150,11 @@ static void release_page(uint32 virtual_addr) {
   *((uint32*)pte) = 0;
 }
 
-static void release_pages(uint32 virtual_addr, int pages) {
+static void release_pages(uint32 virtual_addr, uint32 pages) {
   virtual_addr = (virtual_addr / PAGE_SIZE) * PAGE_SIZE;
-  for (int i = 0; i < pages; i++) {
-    uint32 pde_index = virtual_addr >> 12;
+  for (uint32 i = 0; i < pages; i++) {
     release_page(virtual_addr + i * PAGE_SIZE);
   }
+
+  reload_page_table(current_page_directory);
 }

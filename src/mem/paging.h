@@ -52,7 +52,7 @@ typedef struct page_directory {
 // *****************************************************************************
 void init_paging();
 
-void* alloc_kernel_placement_addr(uint32 size);
+//void* alloc_kernel_placement_addr(uint32 size);
 
 int32 allocate_phy_frame();
 void release_phy_frame(uint32 frame);

@@ -4,22 +4,27 @@
 #include "common/common.h"
 #include "utils/ordered_array.h"
 
-#define KHEAP_INITIAL_SIZE  0x100000
+#define KHEAP_START          0xC0900000
+#define KHEAP_MIN_SIZE       0x300000
+#define KHEAP_MAX            0xE0000000
 
-#define HEAP_INDEX_NUM      0x20000
-#define HEAP_MAGIC          0x123890AB
-#define HEAP_MIN_SIZE       0x10000  // 64KB
+#define KHEAP_INDEX_NUM      0x20000
+#define KHEAP_MAGIC          0x123060AB
 
-typedef struct kheap_block_header {
+// 9 bytes
+struct kheap_block_header {
   uint32 magic;
   uint8 is_hole;
   uint32 size;
-} kheap_block_header_t;
+} __attribute__((packed));
+typedef struct kheap_block_header kheap_block_header_t;
 
-typedef struct {
+// 8 bytes
+struct kheap_block_footer {
   uint32 magic;
-  kheap_block_header_t *kheap_block_header;
-} kheap_block_footer_t;
+  kheap_block_header_t *header;
+} __attribute__((packed));
+typedef struct kheap_block_footer kheap_block_footer_t;
 
 typedef struct kernel_heap {
   ordered_array_t index;

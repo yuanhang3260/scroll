@@ -3,6 +3,8 @@
 #include "interrupt/timer.h"
 #include "interrupt/interrupt.h"
 #include "mem/paging.h"
+#include "mem/kheap.h"
+#include "utils/debug.h"
 
 char* welcome = "# welcome to scroll kernel #";
 
@@ -16,11 +18,16 @@ void print_shell() {
 
 void memory_killer() {
   uint32 *ptr = (uint32*)KERNEL_PLACEMENT_ADDR_START;
-  //uint32 *ptr = (uint32*)(1024*1024);
   while(1) {
     *ptr = 3;
     ptr += 1;
   }
+}
+
+void kheap_killer() {
+  uint32* ptr = (uint64*)kmalloc(32);
+  *ptr = 100;
+  monitor_printf("ptr = %x, *ptr = %d\n", ptr, *ptr);
 }
 
 int main() {
@@ -29,11 +36,14 @@ int main() {
   //print_shell();
 
   init_idt();
-  //enable_interrupt();
-  //init_timer(TIMER_FREQUENCY);
+  // enable_interrupt();
+  // init_timer(TIMER_FREQUENCY);
 
   init_paging();
-  memory_killer();
+  //memory_killer();
+
+  init_kheap();
+  kheap_killer();
 
   while(1) {}
 }
