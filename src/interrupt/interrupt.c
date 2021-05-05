@@ -102,7 +102,7 @@ void isr_handler(isr_params_t params) {
     isr_t handler = interrupt_handlers[int_num];
     handler(params);
   } else {
-    monitor_printf("unkown interrupt: %d\n", int_num);
+    //monitor_printf("unknown interrupt: %d\n", int_num);
   }
 }
 

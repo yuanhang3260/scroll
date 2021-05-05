@@ -157,7 +157,7 @@ void monitor_write_dec_with_color(uint32 n, uint8 color) {
     return;
   }
 
-  int32 acc = n;
+  uint32 acc = n;
   char c[32];
   int i = 0;
   while (acc > 0) {

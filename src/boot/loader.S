@@ -412,6 +412,7 @@ init_kernel:
   call allocate_pages_for_kernel
   call load_hd_kernel_image
   call do_load_kernel
+  finit
 
   ; let's jump to kernel entry :)
   jmp eax

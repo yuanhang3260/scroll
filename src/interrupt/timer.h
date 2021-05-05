@@ -7,4 +7,6 @@
 
 void init_timer(uint32 frequency);
 
+uint32 getTick();
+
 #endif

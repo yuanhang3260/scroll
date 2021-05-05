@@ -18,6 +18,7 @@ OBJS_C = \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \
+	$(OBJ_DIR)/utils/rand.o \
 
 OBJS_ASM = \
 

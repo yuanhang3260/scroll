@@ -5,6 +5,7 @@
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "utils/debug.h"
+#include "utils/rand.h"
 
 char* welcome = "# welcome to scroll kernel #";
 
@@ -24,20 +25,49 @@ void memory_killer() {
   }
 }
 
-void kheap_killer() {
-  uint32* ptr = (uint64*)kmalloc(32);
+void kheap_test() {
+  uint32* ptr = (uint32*)kmalloc(32);
   *ptr = 100;
-  monitor_printf("ptr = %x, *ptr = %d\n", ptr, *ptr);
+  uint32* ptr1 = (uint32*)kmalloc(200);
+  *ptr1 = 101;
+
+  uint32* ptr2 = (uint32*)kmalloc_aligned(4096 * 2);
+  *ptr2 = 200;
+
+  kfree(ptr);
+  ptr = (uint32*)kmalloc(14);
+  *ptr = 100;
+
+  uint8* ptr3 = (uint8*)kmalloc(1);
+  *ptr3 = 5;
+
+  uint32* ptr4 = (uint32*)kmalloc_aligned(4096 * 10);
+  *ptr4 = 200;
+
+  kfree(ptr);
+  kfree(ptr1);
+  kfree(ptr2);
+  kfree(ptr3);
+  kfree(ptr4);
+
+  kheap_validate_print(/* print = */ 1);
+}
+
+void kheap_killer() {
+  rand_seed(5);
+  for (int i = 0; i < 10; i++) {
+    uint32 random = rand_range(0, 10);
+    monitor_printf("%u ", random);
+  }
 }
 
 int main() {
   monitor_clear();
   monitor_println(welcome);
-  //print_shell();
 
   init_idt();
-  // enable_interrupt();
-  // init_timer(TIMER_FREQUENCY);
+  enable_interrupt();
+  init_timer(TIMER_FREQUENCY);
 
   init_paging();
   //memory_killer();

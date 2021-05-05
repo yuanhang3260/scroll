@@ -14,7 +14,7 @@ ordered_array_t ordered_array_create(type_t* array, uint32 max_size, comparator_
   return to_ret;
 }
 
-int32 ordered_array_insert(ordered_array_t *this, type_t item) {
+uint32 ordered_array_insert(ordered_array_t *this, type_t item) {
   // Check boundary
   if (this->size >= this->max_size) {
     return 0;
@@ -26,7 +26,7 @@ int32 ordered_array_insert(ordered_array_t *this, type_t item) {
   }
 
   this->size++;
-  for (uint32 i = this->size - 1; i > iterator; i++) {
+  for (uint32 i = this->size - 1; i > iterator; i--) {
     this->array[i] = this->array[i -1];
   }
   this->array[iterator] = item;
@@ -42,7 +42,7 @@ type_t ordered_array_get(ordered_array_t *this, uint32 i) {
   return this->array[i];
 }
 
-int32 ordered_array_remove(ordered_array_t *this, uint32 i) {
+uint32 ordered_array_remove(ordered_array_t *this, uint32 i) {
   if (i >= this->size) {
     return 0;
   }
@@ -55,7 +55,7 @@ int32 ordered_array_remove(ordered_array_t *this, uint32 i) {
   return 1;
 }
 
-int32 ordered_array_remove_element(ordered_array_t *this, type_t ele) {
+uint32 ordered_array_remove_element(ordered_array_t *this, type_t ele) {
   uint32 index = this->size;
   for (uint32 i = 0; i < this->size; i++) {
     if (this->array[i] == ele) {
@@ -73,4 +73,15 @@ int32 ordered_array_remove_element(ordered_array_t *this, type_t ele) {
   }
   this->size--;
   return 1;
+}
+
+uint32 ordered_array_find_element(ordered_array_t *this, type_t ele) {
+  uint32 index = this->size;
+  for (uint32 i = 0; i < this->size; i++) {
+    if (this->array[i] == ele) {
+      index = i;
+      break;
+    }
+  }
+  return index;
 }

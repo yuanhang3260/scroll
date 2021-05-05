@@ -1,3 +1,4 @@
+#include "monitor/monitor.h"
 #include "mem/kheap.h"
 #include "mem/paging.h"
 #include "utils/debug.h"
@@ -155,6 +156,7 @@ void* alloc(kheap_t *this, uint32 size, uint8 page_align) {
   }
 
   kheap_block_header_t* header = (kheap_block_header_t*)ordered_array_get(&this->index, iterator);
+  ASSERT(header->magic == KHEAP_MAGIC);
   uint32 block_size = header->size;
 
   ordered_array_remove(&this->index, iterator);
@@ -162,17 +164,19 @@ void* alloc(kheap_t *this, uint32 size, uint8 page_align) {
   if (page_align) {
     kheap_block_header_t* alloc_block_header = (kheap_block_header_t*)(alloc_pos - HEADER_SIZE);
     if (alloc_block_header > header) {
-      make_block((uint32)header, (uint32)alloc_block_header - BLOCK_META_SIZE, IS_HOLE);
+      uint32 cut_block_size = (uint32)alloc_block_header - (uint32)header;
+      ASSERT(cut_block_size > BLOCK_META_SIZE);
+      make_block((uint32)header, cut_block_size - BLOCK_META_SIZE, IS_HOLE);
       ordered_array_insert(&this->index, (type_t)header);
-      block_size -= (alloc_block_header - header);
+      block_size -= cut_block_size;
       header = alloc_block_header;
     }
   }
 
   // Use this block.
+  ASSERT(block_size >= size);
   uint32 remain_size = block_size - size;
-  ASSERT(remain_size >= 0);
-  if (remain_size < BLOCK_META_SIZE) {
+  if (remain_size <= BLOCK_META_SIZE) {
     size = block_size;
     remain_size = 0;
   }
@@ -225,7 +229,38 @@ void free(kheap_t* this, void* ptr) {
   ordered_array_insert(&this->index, (type_t)new_hole);
 }
 
-// ************************************************************************
+// ****************************************************************************
+void kheap_validate_print(uint8 print) {
+  if (print) {
+    monitor_printf("*************************** kheap *****************************\n");
+  }
+  uint32 start = kheap.start_address;
+  uint32 hole_num = 0;
+  while (start < kheap.end_address) {
+    kheap_block_header_t* header = (kheap_block_header_t*)(start);
+    ASSERT(header->magic == KHEAP_MAGIC);
+    if (header->is_hole) {
+      ASSERT(ordered_array_find_element(&kheap.index, (type_t)header) < kheap.index.size);
+      if (print) {
+        monitor_printf("[]--- start:%x end:%x size: %d\n",
+            header, (uint32)header + header->size + BLOCK_META_SIZE, header->size);
+      }
+      hole_num++;
+    } else {
+      if (print) {
+        monitor_printf("      start:%x end:%x size: %d\n",
+            header, (uint32)header + header->size + BLOCK_META_SIZE, header->size);
+      }
+    }
+    start += (header->size + BLOCK_META_SIZE);
+    ASSERT(start <= kheap.end_address);
+  }
+  if (print) {
+    monitor_printf("***************************************************************\n");
+  }
+  ASSERT(hole_num == kheap.index.size);
+}
+
 void init_kheap() {
   kheap = create_kheap(KHEAP_START, KHEAP_START + KHEAP_MIN_SIZE, KHEAP_MAX, 0, 0);
 }

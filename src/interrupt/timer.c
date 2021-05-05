@@ -5,14 +5,18 @@
 
 uint32 tick = 0;
 
+uint32 getTick() {
+  return tick;
+}
+
 static void timer_callback(isr_params_t regs) {
   if (tick % TIMER_FREQUENCY == 0) {
-    monitor_printf("second: %d\n", tick / TIMER_FREQUENCY);
+    //monitor_printf("second: %d\n", tick / TIMER_FREQUENCY);
   }
   tick++;
 }
 
-void init_timer(uint32 frequency){
+void init_timer(uint32 frequency) {
   // register our timer callback.
   register_interrupt_handler(IRQ0_INT_NUM, &timer_callback);
 
