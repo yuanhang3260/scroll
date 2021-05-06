@@ -36,6 +36,8 @@ typedef struct kernel_heap {
   uint8 readonly;
 } kheap_t;
 
+
+// ****************************************************************************
 void init_kheap();
 
 kheap_t create_kheap(uint32 start, uint32 end, uint32 max, uint8 supervisor, uint8 readonly);
@@ -47,5 +49,11 @@ void* kmalloc_aligned(uint32 size);
 void kfree(void *p);
 
 uint32 kheap_validate_print(uint8 print);
+
+
+// ******************************** unit tests **********************************
+void kheap_test();
+
+void kheap_killer();
 
 #endif

@@ -158,3 +158,13 @@ static void release_pages(uint32 virtual_addr, uint32 pages) {
 
   reload_page_table(current_page_directory);
 }
+
+
+// ******************************** unit tests **********************************
+void memory_killer() {
+  uint32 *ptr = (uint32*)KERNEL_PLACEMENT_ADDR_START;
+  while(1) {
+    *ptr = 3;
+    ptr += 1;
+  }
+}

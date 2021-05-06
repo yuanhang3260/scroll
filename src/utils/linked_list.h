@@ -14,8 +14,10 @@ struct linked_list {
   linked_list_node_t* head;
   linked_list_node_t* tail;
   uint32 size;
+  
 } __attribute__((packed));
 typedef struct linked_list linked_list_t;
+
 
 // ****************************************************************************
 linked_list_t create_linked_list();
@@ -27,5 +29,8 @@ void linked_list_insert(linked_list_t* this, linked_list_node_t* n, linked_list_
 
 void linked_list_remove(linked_list_t* this, linked_list_node_t* n);
 
+
+// ******************************** unit tests **********************************
+void linked_list_test();
 
 #endif

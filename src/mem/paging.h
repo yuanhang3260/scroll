@@ -62,3 +62,7 @@ void switch_page_directory(page_directory_t *new);
 void page_fault_handler(isr_params_t params);
 
 #endif
+
+
+// ******************************** unit tests **********************************
+void memory_killer();
