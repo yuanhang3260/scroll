@@ -22,6 +22,7 @@ uint32 rand() {
   }
 
   seed = (seed * rand_a + rand_c) % rand_m;
+  //monitor_printf("seed = %u\n", seed);
   return seed;
 }
 

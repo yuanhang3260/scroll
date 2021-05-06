@@ -46,6 +46,6 @@ void* kmalloc_aligned(uint32 size);
 
 void kfree(void *p);
 
-void kheap_validate_print(uint8 print);
+uint32 kheap_validate_print(uint8 print);
 
 #endif

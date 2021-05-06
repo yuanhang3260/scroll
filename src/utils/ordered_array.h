@@ -3,8 +3,6 @@
 
 #include "common/common.h"
 
-typedef void* type_t;
-
 // An comparator function is used to sort elements. It returns -1, 0 or 1 if
 // the first element is less than, equal to or greater than the second.
 typedef int32 (*comparator_t)(type_t, type_t);

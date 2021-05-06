@@ -273,32 +273,32 @@ move_cursor:
 ;****************************** setup paging **********************************;
 setup_page:
   ; clear the memory space for page directory
-  push 4096
-  push PAGE_DIR_TABLE_POS
+  push PAGE_SIZE
+  push PAGE_DIR_PHYISCAL_ADDR
   call clear_memory
   add esp, 8
 
   ; create page directory
 .create_pde:
   ; first pde
-  mov eax, PAGE_DIR_TABLE_POS + 4096
+  mov eax, PAGE_DIR_PHYISCAL_ADDR - PAGE_SIZE
   or eax, PG_US_U | PG_RW_W | PG_P
-  mov [PAGE_DIR_TABLE_POS + 0], eax
-  mov [PAGE_DIR_TABLE_POS + 768 * 4], eax
+  mov [PAGE_DIR_PHYISCAL_ADDR + 0], eax
+  mov [PAGE_DIR_PHYISCAL_ADDR + 768 * 4], eax
 
   ; the second pde - we use this 4MB virtual space for all kernel page tales :)
-  mov eax, PAGE_DIR_TABLE_POS
+  mov eax, PAGE_DIR_PHYISCAL_ADDR
   or eax, PG_US_U | PG_RW_W | PG_P
-  mov [PAGE_DIR_TABLE_POS + 769 * 4], eax
+  mov [PAGE_DIR_PHYISCAL_ADDR + 769 * 4], eax
 
   ; other kernel pde
-  mov eax, PAGE_DIR_TABLE_POS + 4096 * 2
+  mov eax, PAGE_DIR_PHYISCAL_ADDR + PAGE_SIZE
   or eax, PG_US_U | PG_RW_W | PG_P
   mov ecx, 254
-  mov edx, PAGE_DIR_TABLE_POS + 770 * 4
+  mov edx, PAGE_DIR_PHYISCAL_ADDR + 770 * 4
 .create_kernel_pde:
   mov [edx], eax
-  add eax, 4096
+  add eax, PAGE_SIZE
   add edx, 4
   loop .create_kernel_pde
 
@@ -306,10 +306,10 @@ setup_page:
   mov eax, 0
   or eax, PG_US_U | PG_RW_W | PG_P
   mov ecx, 256
-  mov edx, PAGE_DIR_TABLE_POS + 4096
+  mov edx, PAGE_DIR_PHYISCAL_ADDR - PAGE_SIZE
 .create_pte:
   mov [edx], eax
-  add eax, 4096
+  add eax, PAGE_SIZE
   add edx, 4
   loop .create_pte
 
@@ -339,7 +339,7 @@ set_pages_mapping:
   ; Note we use the VIRTUAL address of page tables, starting from 0xC0400000
   mov [PAGE_TABLES_VIRTUAL_ADDR_START + esi * 4], edi
   add esi, 1
-  add edi, 4096
+  add edi, PAGE_SIZE
   loop .map_next_page
 
   pop ebx
@@ -365,7 +365,7 @@ clear_pages_mapping:
   ; Note we use the VIRTUAL address of page tables, starting from 0xC0400000
   mov dword [PAGE_TABLES_VIRTUAL_ADDR_START + esi * 4], 0
   add esi, 1
-  add edi, 4096
+  add edi, PAGE_SIZE
   loop .clear_next_page_map
 
   pop ebx
@@ -389,7 +389,7 @@ enable_page:
   mov [esp], eax
 
   ; set page directory address to cr3 register 
-  mov eax, PAGE_DIR_TABLE_POS
+  mov eax, PAGE_DIR_PHYISCAL_ADDR
   mov cr3, eax
   
   ; enable paging on cr0 register
@@ -412,6 +412,8 @@ init_kernel:
   call allocate_pages_for_kernel
   call load_hd_kernel_image
   call do_load_kernel
+  
+  ; init floating point unit before entering the kernel
   finit
 
   ; let's jump to kernel entry :)

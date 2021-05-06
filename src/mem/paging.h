@@ -24,7 +24,7 @@
 // 0x00000000 ... 0x00100000  boot & reserved                                1MB
 // 0x00100000 ... 0x00200000  kernel page tables                             1MB
 // 0x00200000 ... 0x00300000  kernel load                                    1MB
-#define KERNEL_PAGE_DIR_PHY           0x00100000
+#define KERNEL_PAGE_DIR_PHY           0x00101000
 
 #define PHYSICAL_MEM_SIZE             (32 * 1024 * 1024)
 #define KERNEL_BIN_LOAD_SIZE          (1024 * 1024)

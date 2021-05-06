@@ -20,6 +20,7 @@ static uint32 align_to_page(uint32 num) {
 }
 
 static uint32 kheap_expand(kheap_t *this, uint32 expand_size) {
+  monitor_printf("kheap expand size = %u\n", expand_size);
   expand_size = align_to_page(expand_size);
   if (expand_size <= 0) {
     return 0;
@@ -110,8 +111,9 @@ static int32 find_hole(kheap_t *this, uint32 size, uint8 page_align, uint32* all
       // Align the starting point.
       // |..................|..................|..................|  page align
       //      |h| data  |f|h| data |f|
+      uint32 end = start + header->size;
       uint32 next_page_align = align_to_page(start);
-      while (next_page_align < start + header->size) {
+      while (next_page_align + size <= end) {
         if (next_page_align - start > BLOCK_META_SIZE) {
           *alloc_pos = next_page_align;
           return i;
@@ -128,12 +130,14 @@ static int32 find_hole(kheap_t *this, uint32 size, uint8 page_align, uint32* all
 }
 
 void* alloc(kheap_t *this, uint32 size, uint8 page_align) {
+  ASSERT(size > 0);
+
   uint32 alloc_pos;
   int32 iterator = find_hole(this, size, page_align, &alloc_pos);
   if (iterator < 0) {
     // No free hole fits, we need to expand the heap.
     uint32 old_end_address = this->end_address;
-    uint32 extended_size = kheap_expand(this, size);
+    uint32 extended_size = kheap_expand(this, size + BLOCK_META_SIZE);
 
     kheap_block_footer_t* last_footer = (kheap_block_footer_t*)(old_end_address - FOOTER_SIZE);
     kheap_block_header_t* last_header = last_footer->header;
@@ -230,12 +234,13 @@ void free(kheap_t* this, void* ptr) {
 }
 
 // ****************************************************************************
-void kheap_validate_print(uint8 print) {
+uint32 kheap_validate_print(uint8 print) {
   if (print) {
     monitor_printf("*************************** kheap *****************************\n");
   }
   uint32 start = kheap.start_address;
   uint32 hole_num = 0;
+  uint32 alloc_num = 0;
   while (start < kheap.end_address) {
     kheap_block_header_t* header = (kheap_block_header_t*)(start);
     ASSERT(header->magic == KHEAP_MAGIC);
@@ -251,6 +256,7 @@ void kheap_validate_print(uint8 print) {
         monitor_printf("      start:%x end:%x size: %d\n",
             header, (uint32)header + header->size + BLOCK_META_SIZE, header->size);
       }
+      alloc_num++;
     }
     start += (header->size + BLOCK_META_SIZE);
     ASSERT(start <= kheap.end_address);
@@ -259,6 +265,7 @@ void kheap_validate_print(uint8 print) {
     monitor_printf("***************************************************************\n");
   }
   ASSERT(hole_num == kheap.index.size);
+  return alloc_num;
 }
 
 void init_kheap() {
@@ -266,6 +273,9 @@ void init_kheap() {
 }
 
 static void* kmalloc_impl(uint32 size, uint8 align) {
+  if (size == 0) {
+    return 0;
+  }
   return alloc(&kheap, size, (uint8)align);
 }
 
@@ -277,6 +287,9 @@ void* kmalloc_aligned(uint32 size) {
   return kmalloc_impl(size, 1);
 }
 
-void kfree(void* p) {
-  free(&kheap, p);
+void kfree(void* ptr) {
+  if (ptr == 0) {
+    return;
+  }
+  free(&kheap, ptr);
 }

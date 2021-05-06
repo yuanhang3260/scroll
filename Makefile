@@ -19,6 +19,7 @@ OBJS_C = \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \
 	$(OBJ_DIR)/utils/rand.o \
+	$(OBJ_DIR)/utils/linked_list.o \
 
 OBJS_ASM = \
 
