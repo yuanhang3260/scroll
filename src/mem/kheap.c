@@ -332,15 +332,14 @@ void kheap_test() {
 
 void kheap_killer() {
   uint32 size = 500;
-  rand_seed(7);
+  rand_seed(5);
 
   monitor_printf("kheap stress test ... ");
-  for (uint32 loop = 0; loop < 2; loop++) {
+  for (uint32 loop = 0; loop < 1; loop++) {
     // alloc
     uint8* ptrs[size * 2];
     for (int i = 0; i < size; i++) {
       uint32 random = rand_range(1, 1000);
-      //monitor_printf("%u ", random);
       if (i % 5 == 1) {
         ptrs[i] = (uint8*)kmalloc_aligned(random);
       } else {

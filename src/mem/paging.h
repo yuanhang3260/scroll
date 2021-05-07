@@ -20,10 +20,13 @@
 #define KERNEL_PLACEMENT_ADDR_START   \
   (KERNEL_LOAD_VIRTUAL_ADDR + KERNEL_SIZE_MAX)  // 0xC0900000
 
+#define COPIED_PAGE_TABLES_VADDR      0xFFC00000
+
 // ********************* physical memory layout ********************************
 // 0x00000000 ... 0x00100000  boot & reserved                                1MB
 // 0x00100000 ... 0x00200000  kernel page tables                             1MB
 // 0x00200000 ... 0x00300000  kernel load                                    1MB
+// 0x01fff000 ... 0x01ffffff  kernel stack                                   4KB
 #define KERNEL_PAGE_DIR_PHY           0x00101000
 
 #define PHYSICAL_MEM_SIZE             (32 * 1024 * 1024)
@@ -60,6 +63,8 @@ void release_phy_frame(uint32 frame);
 void switch_page_directory(page_directory_t *new);
 
 void page_fault_handler(isr_params_t params);
+
+uint32 clone_page_dir();
 
 #endif
 

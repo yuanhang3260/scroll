@@ -33,8 +33,6 @@ int main() {
   //kheap_test();
   //kheap_killer();
 
-  linked_list_test();
-
   monitor_println("idle...");
   while(1) {}
 }

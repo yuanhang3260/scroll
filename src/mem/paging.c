@@ -1,4 +1,6 @@
+#include "common/stdlib.h"
 #include "mem/paging.h"
+#include "mem/kheap.h"
 #include "monitor/monitor.h"
 #include "utils/debug.h"
 
@@ -14,12 +16,13 @@ page_directory_t *current_page_directory = 0;
 static bitmap_t phy_frames_map;
 uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
 
-static void allcoate_page(uint32 virtual_addr);
+static void map_page(uint32 virtual_addr);
+static void map_page_with_frame(uint32 virtual_addr, int32 frame);
 static void release_page(uint32 virtual_addr);
 static void release_pages(uint32 virtual_addr, uint32 pages);
 
 void init_paging() {
-  // Initialize phy_frames_map. Note we have already used the first 3MB
+  // Initialize phy_frames_map. Note we have already used the first 3MB and last 4KB
   // phyical memory for kernel initialization.
   //
   // totally 8192 frames
@@ -27,6 +30,8 @@ void init_paging() {
     bitarray[i] = 0xFFFFFFFF;
   }
   phy_frames_map = bitmap_create(bitarray, PHYSICAL_MEM_SIZE / PAGE_SIZE);
+  bitmap_clear_bit(&phy_frames_map, PHYSICAL_MEM_SIZE / PAGE_SIZE - 1);
+  bitmap_clear_bit(&phy_frames_map, PHYSICAL_MEM_SIZE / PAGE_SIZE - 2);
 
   // Initialize page directory.
   kernel_page_directory.page_dir_entries_phy = (pde_t*)KERNEL_PAGE_DIR_PHY;
@@ -89,11 +94,15 @@ void page_fault_handler(isr_params_t params) {
   //  "page fault: %x, present %d, write %d, user-mode %d, reserved %d\n",
   //  faulting_address, present, rw, user_mode, reserved);
 
-  allcoate_page(faulting_address);
+  map_page(faulting_address);
   reload_page_table(current_page_directory);
 }
 
-static void allcoate_page(uint32 virtual_addr) {
+static void map_page(uint32 virtual_addr) {
+  map_page_with_frame(virtual_addr, -1);
+}
+
+static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
   // Lookup pde - note we use virtual address 0xC0701000 to access page
   // directory, which is the actually the 2nd page table of kernel space.
   uint32 pde_index = virtual_addr >> 22;
@@ -102,16 +111,16 @@ static void allcoate_page(uint32 virtual_addr) {
 
   // Allcoate page table for this pde, if needed.
   if (!pde->present) {
-    int32 frame = allocate_phy_frame();
-    if (frame < 0) {
+    int32 page_table_frame = allocate_phy_frame();
+    if (page_table_frame < 0) {
       monitor_printf("couldn't alloc frame for page table on %d\n", pde_index);
       PANIC();
     }
-    monitor_printf("alloca frame %d for page table %d\n", frame, pde_index);
+    //monitor_printf("alloca frame %d for page table %d\n", frame, pde_index);
     pde->present = 1;
     pde->rw = 1;
     pde->user = 1;
-    pde->frame = frame;
+    pde->frame = page_table_frame;
   }
 
   // Lookup pte - still use virtual address. Note all 1024 page tables are
@@ -120,10 +129,12 @@ static void allcoate_page(uint32 virtual_addr) {
   pte_t* kernel_page_tables_virtual = (pte_t*)PAGE_TABLES_VIRTUAL;
   pte_t* pte = kernel_page_tables_virtual + pte_index;
   if (!pte->present) {
-    int32 frame = allocate_phy_frame();
     if (frame < 0) {
-      monitor_printf("couldn't alloc frame for addr %x\n", virtual_addr);
-      PANIC();
+      int32 frame = allocate_phy_frame();
+      if (frame < 0) {
+        monitor_printf("couldn't alloc frame for addr %x\n", virtual_addr);
+        PANIC();
+      }
     }
     //monitor_printf("alloc frame %d for virtual addr %x\n", frame, virtual_addr);
     pte->present = 1;
@@ -159,6 +170,66 @@ static void release_pages(uint32 virtual_addr, uint32 pages) {
   reload_page_table(current_page_directory);
 }
 
+// Copy the entire page dir and its page tables:
+//  - 256 kernel page tables are shared;
+//  - user space page tables are copied, and page entries are marked copy-on-write;
+//
+// Return the physical address of new page dir.
+uint32 clone_page_dir() {
+  int32 new_pd_frame = allocate_phy_frame();
+  if (new_pd_frame < 0) {
+    monitor_printf("couldn't alloc frame for new page dir\n");
+    PANIC();
+  }
+
+  // Map copied page tables (including the new page dir) to some virtual space so that
+  // we can access them - let's use the last 4MB virtual space, 0xFFC00000 - 0xFFFFFFFF.
+  //
+  // First, map the new page dir.
+  uint32 new_page_tables_vaddr = COPIED_PAGE_TABLES_VADDR;
+  map_page_with_frame(new_page_tables_vaddr, new_pd_frame);
+  memset((void*)new_page_tables_vaddr, 0, PAGE_SIZE);
+
+  pde_t* new_pd = (pde_t*)COPIED_PAGE_TABLES_VADDR;
+  pde_t* crt_pd = (pde_t*)PAGE_DIR_VIRTUAL;
+  // Share all 256 kernel pdes - except pde 769, which should points to page dir itself.
+  for (uint32 i = 768; i < 1024; i++) {
+    pde_t* new_pde = new_pd + i;
+    if (i == 769) {
+      new_pde->present = 1;
+      new_pde->rw = 1;
+      new_pde->user = 1;
+      new_pde->frame = new_pd_frame;
+    } else {
+      *new_pde = *(crt_pd + i);
+    }
+  }
+
+  // Copy user space page tables, and set pages copy-on-write.
+  for (uint32 i = 0; i < 768; i++) {
+    pde_t* crt_pde = crt_pd + i;
+    if (!crt_pde->present) {
+      continue;
+    }
+    // Alloc a new frame for copied page table.
+    int32 new_pt_frame = allocate_phy_frame();
+    if (new_pt_frame < 0) {
+      monitor_printf("couldn't alloc frame for copied page table\n");
+      PANIC();
+    }
+
+    new_page_tables_vaddr += PAGE_SIZE;
+    map_page_with_frame(new_page_tables_vaddr, new_pt_frame);
+    pte_t* new_pt = (pte_t*)new_page_tables_vaddr;
+    pte_t* crt_pt = ((pte_t*)PAGE_TABLES_VIRTUAL) + i;
+    *new_pt = *crt_pt;
+    
+    // TODO: Set copied ptes copy-on-write.
+
+    // Release mapping for new page tables on current process.
+    release_pages(COPIED_PAGE_TABLES_VADDR, 1024);
+  }
+}
 
 // ******************************** unit tests **********************************
 void memory_killer() {

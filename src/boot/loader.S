@@ -416,6 +416,10 @@ init_kernel:
   ; init floating point unit before entering the kernel
   finit
 
+  ; move stack to > 0xC0000000
+  mov esp, KERNEL_STACK_TOP - 16
+  mov ebp, esp
+
   ; let's jump to kernel entry :)
   jmp eax
   ret
@@ -436,6 +440,14 @@ allocate_pages_for_kernel:
   push ecx  ; arg 3: num of pages to place kernel
   push KERNEL_PHYSICAL_ADDR_START  ; arg 2: physical addr
   push KERNEL_VIRTUAL_ADDR_START   ; arg 1: virtual addr
+  call set_pages_mapping
+  add esp, 12
+
+  ; allocate one page for kernel stack
+  mov ecx, 2
+  push ecx  ; arg 3: num of pages
+  push KERNEL_STACK_PHYSICAL_ADDR        ; arg 2: physical addr
+  push KERNEL_STACK_TOP - PAGE_SIZE * 2  ; arg 1: virtual addr
   call set_pages_mapping
   add esp, 12
 
