@@ -8,7 +8,16 @@ static void kernel_thread(thread_func* function, void* func_arg) {
   function(func_arg);
 }
 
-void thread_create(tcb* pthread, thread_func function, void* func_arg) {
+static void init_thread(tcb* pthread, char* name, uint32 prio) {
+  memset(pthread, 0, sizeof(tcb));
+  strcpy(pthread->name, name);
+  pthread->status = TASK_RUNNING;
+  pthread->priority = prio;
+  pthread->self_kstack = (void*)pthread + PAGE_SIZE;
+  pthread->stack_magic = THREAD_STACK_MAGIC;
+}
+
+static void thread_create(tcb* pthread, thread_func function, void* func_arg) {
   pthread->self_kstack -= sizeof(interrupt_stack_t);
   pthread->self_kstack -= sizeof(thread_stack_t);
   thread_stack_t* kthread_stack = (thread_stack_t*)pthread->self_kstack;
@@ -21,15 +30,6 @@ void thread_create(tcb* pthread, thread_func function, void* func_arg) {
   kthread_stack->ebx = 0;
   kthread_stack->esi = 0;
   kthread_stack->edi = 0;
-}
-
-void init_thread(tcb* pthread, char* name, uint32 prio) {
-  memset(pthread, 0, sizeof(tcb));
-  strcpy(pthread->name, name);
-  pthread->status = TASK_RUNNING;
-  pthread->priority = prio;
-  pthread->self_kstack = (void*)pthread + PAGE_SIZE;
-  pthread->stack_magic = THREAD_STACK_MAGIC;
 }
 
 tcb* thread_start(char* name, uint32 priority, thread_func function, void* func_arg) {

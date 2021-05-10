@@ -19,7 +19,6 @@ void print_shell() {
 }
 
 void k_thread_a(void* argv) {
-  char* para = arg;
   while(1) {
     monitor_println("thread_1");
   }
