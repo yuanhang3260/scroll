@@ -55,19 +55,28 @@ typedef struct page_directory {
 // *****************************************************************************
 void init_paging();
 
-//void* alloc_kernel_placement_addr(uint32 size);
-
+// Physical frame alloc/release.
 int32 allocate_phy_frame();
 void release_phy_frame(uint32 frame);
 
+// Map virtual page to a physical frame.
+void map_page(uint32 virtual_addr);
+void map_page_with_frame(uint32 virtual_addr, int32 frame);
+// Release virtual page mapping and return the physical frame(s).
+void release_page(uint32 virtual_addr);
+void release_pages(uint32 virtual_addr, uint32 pages);
+
+// Switch to a different page directory.
 void switch_page_directory(page_directory_t *new);
 
+// Page fault handler (interrupt no.14)
 void page_fault_handler(isr_params_t params);
 
+// Clonse page directory for a new process.
 uint32 clone_page_dir();
-
-#endif
 
 
 // ******************************** unit tests **********************************
 void memory_killer();
+
+#endif

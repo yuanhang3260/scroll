@@ -11,3 +11,11 @@ void memcpy(void* dst, void* src, int num) {
     *((uint8*)(dst + i)) = *((uint8*)(src + i));
   }
 }
+
+void strcpy(char* dst, char* src) {
+  while (*src != '\0') {
+    *dst = *src;
+    dst++;
+    src++;
+  }
+}

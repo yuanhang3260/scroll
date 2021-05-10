@@ -4,18 +4,25 @@
 #include "interrupt/interrupt.h"
 #include "mem/paging.h"
 #include "mem/kheap.h"
+#include "task/thread.h"
 #include "utils/debug.h"
 #include "utils/rand.h"
 #include "utils/linked_list.h"
 
 char* welcome = "# welcome to scroll kernel #";
 
-int arrayx[10];
-double arrayy[10];
+void k_thread_a(void*);
 
 void print_shell() {
   monitor_print_with_color("bash", COLOR_GREEN);
   monitor_print(" > ");
+}
+
+void k_thread_a(void* argv) {
+  char* para = arg;
+  while(1) {
+    monitor_println("thread_1");
+  }
 }
 
 int main() {
@@ -32,6 +39,8 @@ int main() {
   init_kheap();
   //kheap_test();
   //kheap_killer();
+
+  thread_start("k_thread_a", 31, k_thread_a, 0);
 
   monitor_println("idle...");
   while(1) {}

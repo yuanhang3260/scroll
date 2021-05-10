@@ -16,11 +16,6 @@ page_directory_t *current_page_directory = 0;
 static bitmap_t phy_frames_map;
 uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
 
-static void map_page(uint32 virtual_addr);
-static void map_page_with_frame(uint32 virtual_addr, int32 frame);
-static void release_page(uint32 virtual_addr);
-static void release_pages(uint32 virtual_addr, uint32 pages);
-
 void init_paging() {
   // Initialize phy_frames_map. Note we have already used the first 3MB and last 4KB
   // phyical memory for kernel initialization.
@@ -98,11 +93,11 @@ void page_fault_handler(isr_params_t params) {
   reload_page_table(current_page_directory);
 }
 
-static void map_page(uint32 virtual_addr) {
+void map_page(uint32 virtual_addr) {
   map_page_with_frame(virtual_addr, -1);
 }
 
-static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
+void map_page_with_frame(uint32 virtual_addr, int32 frame) {
   // Lookup pde - note we use virtual address 0xC0701000 to access page
   // directory, which is the actually the 2nd page table of kernel space.
   uint32 pde_index = virtual_addr >> 22;
@@ -130,7 +125,7 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
   pte_t* pte = kernel_page_tables_virtual + pte_index;
   if (!pte->present) {
     if (frame < 0) {
-      int32 frame = allocate_phy_frame();
+      frame = allocate_phy_frame();
       if (frame < 0) {
         monitor_printf("couldn't alloc frame for addr %x\n", virtual_addr);
         PANIC();
@@ -144,7 +139,7 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
   }
 }
 
-static void release_page(uint32 virtual_addr) {
+void release_page(uint32 virtual_addr) {
   uint32 pde_index = virtual_addr >> 22;
   pde_t* pd = (pde_t*)PAGE_DIR_VIRTUAL;
   pde_t* pde = pd + pde_index;
@@ -161,7 +156,7 @@ static void release_page(uint32 virtual_addr) {
   *((uint32*)pte) = 0;
 }
 
-static void release_pages(uint32 virtual_addr, uint32 pages) {
+void release_pages(uint32 virtual_addr, uint32 pages) {
   virtual_addr = (virtual_addr / PAGE_SIZE) * PAGE_SIZE;
   for (uint32 i = 0; i < pages; i++) {
     release_page(virtual_addr + i * PAGE_SIZE);
