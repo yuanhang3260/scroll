@@ -15,7 +15,7 @@ OBJS_C = \
 	$(OBJ_DIR)/interrupt/timer.o \
 	$(OBJ_DIR)/mem/paging.o \
 	$(OBJ_DIR)/mem/kheap.o \
-	$(OBJ_DIR)/task/task.o \
+	$(OBJ_DIR)/task/thread.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \
