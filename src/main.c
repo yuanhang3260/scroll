@@ -1,4 +1,5 @@
 #include "common/common.h"
+#include "common/stdlib.h"
 #include "monitor/monitor.h"
 #include "interrupt/timer.h"
 #include "interrupt/interrupt.h"

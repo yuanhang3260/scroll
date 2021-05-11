@@ -16,6 +16,7 @@ OBJS_C = \
 	$(OBJ_DIR)/mem/paging.o \
 	$(OBJ_DIR)/mem/kheap.o \
 	$(OBJ_DIR)/task/thread.o \
+	$(OBJ_DIR)/sync/cas.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \
@@ -115,6 +116,18 @@ $(OBJ_DIR)/task/%.o: $(SRC_DIR)/task/%.c $(SRC_DIR)/task/%.h
 
 $(OBJ_DIR)/task/%.o: $(SRC_DIR)/task/%.S
 	mkdir -p $(OBJ_DIR)/task
+	$(ASM) $(ASFLAGS) $< -o $@
+
+$(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.c
+	mkdir -p $(OBJ_DIR)/sync
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.c $(SRC_DIR)/sync/%.h
+	mkdir -p $(OBJ_DIR)/sync
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.S
+	mkdir -p $(OBJ_DIR)/sync
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c

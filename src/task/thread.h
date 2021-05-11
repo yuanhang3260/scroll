@@ -5,7 +5,7 @@
 #include "interrupt/interrupt.h"
 
 #define KERNEL_STACK_TOP    0xF0000000
-#define THREAD_STACK_MAGIC  0x32602018
+#define THREAD_STACK_MAGIC  0x32602021
 
 typedef isr_params_t interrupt_stack_t;
 
@@ -35,16 +35,19 @@ struct thread_stack {
 typedef struct thread_stack thread_stack_t;
 
 struct task_struct {
-  void* self_kstack;
-  enum task_status status;
-  uint8 priority;
+  uint32 id;
   char name[16];
-  uint32 stack_magic;
+  uint8 priority;
+  enum task_status status;
+  void* self_kstack;
+  uint32 stack_magic;  // This is the boundary of tcb and thread stack.
 };
 typedef struct task_struct tcb;
 
 
 // ****************************************************************************
 tcb* thread_start(char* name, uint32 priority, thread_func function, void* func_arg);
+
+void thread_yield();
 
 #endif
