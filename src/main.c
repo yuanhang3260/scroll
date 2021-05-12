@@ -13,16 +13,10 @@
 
 char* welcome = "# welcome to scroll kernel #";
 
-void k_thread_a(void*);
-
-void print_shell() {
-  monitor_print_with_color("bash", COLOR_GREEN);
-  monitor_print(" > ");
-}
-
-void k_thread_a(void* argv) {
+void k_thread(void* arg) {
+  char* str = (char*)arg;
   while(1) {
-    monitor_println("thread_1");
+    monitor_println(str);
   }
 }
 
@@ -41,8 +35,12 @@ int main() {
   //kheap_test();
   //kheap_killer();
 
-  //thread_start("k_thread_a", 31, k_thread_a, 0);
+  init_scheduler();
+  create_thread("k-thread-1", k_thread, "k-thread-1", 20);
+  create_thread("k-thread-2", k_thread, "k-thread-2", 20);
 
-  monitor_println("idle...");
-  while(1) {}
+  start_scheduler();
+
+  // Never should reach here.
+  PANIC();
 }

@@ -38,8 +38,10 @@ void init_scheduler() {
   // Create kernel main thread - cpu_idle thread.
   main_thread = init_thread("kernel_main", cpu_idle_thread, (void*)0, 10);
   crt_thread = main_thread;
-  thread_start(main_thread);
+}
 
+void start_scheduler() {
+  thread_start(main_thread);
   // Never should reach here!
   PANIC();
 }
@@ -65,8 +67,10 @@ static void do_context_switch() {
   tcb* old_thread = crt_thread;
   tcb* next_thread = (tcb*)head->ptr;
 
-  head->ptr = (void*)old_thread;
-  linked_list_append(&ready_tasks, head);
+  if (old_thread != main_thread) {
+    head->ptr = (void*)old_thread;
+    linked_list_append(&ready_tasks, head);
+  }
   crt_thread = next_thread;
 
   context_switch(old_thread, next_thread);
@@ -91,5 +95,7 @@ void maybe_context_switch() {
 
 void thread_yield() {
   disable_interrupt();
-  do_context_switch();
+  if (ready_tasks.size > 0) {
+    do_context_switch();
+  }
 }

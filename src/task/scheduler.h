@@ -6,6 +6,9 @@
 // Init scheduler.
 void init_scheduler();
 
+// Start running scheduler.
+void start_scheduler();
+
 // Create a new thread and add it to ready queue.
 tcb* create_thread(char* name, thread_func function, void* func_arg, uint32 priority);
 
