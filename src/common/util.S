@@ -7,3 +7,8 @@ get_eip:
 get_ebp:
   mov eax, ebp
   ret
+
+[GLOBAL get_esp]
+get_esp:
+  mov eax, esp
+  ret

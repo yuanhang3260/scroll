@@ -1,5 +1,6 @@
 #include "sync/spinlock.h"
 #include "task/thread.h"
+#include "task/scheduler.h"
 
 extern atomic_exchange(uint32* dst, uint32 src);
 

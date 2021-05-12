@@ -97,6 +97,9 @@ void isr_handler(isr_params_t params) {
     outb(0x20, 0x20);
   }
 
+  // Bottom half of interrupt handler - now interrupt is re-enabled.
+  enable_interrupt();
+
   // handle interrupt
   if (interrupt_handlers[int_num] != 0) {
     isr_t handler = interrupt_handlers[int_num];

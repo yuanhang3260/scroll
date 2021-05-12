@@ -16,6 +16,8 @@ OBJS_C = \
 	$(OBJ_DIR)/mem/paging.o \
 	$(OBJ_DIR)/mem/kheap.o \
 	$(OBJ_DIR)/task/thread.o \
+	$(OBJ_DIR)/task/scheduler.o \
+	$(OBJ_DIR)/task/schedule.o \
 	$(OBJ_DIR)/sync/cas.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \

@@ -89,6 +89,7 @@ isr_common_stub:
   ; cleans up the pushed error code and pushed ISR number
   add esp, 8
 
+  ; make sure interrupt is enabled
   sti
   ; pops CS, EIP, EFLAGS, SS, and ESP by processor
   iret

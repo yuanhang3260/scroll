@@ -2,6 +2,7 @@
 #include "monitor/monitor.h"
 #include "interrupt/interrupt.h"
 #include "interrupt/timer.h"
+#include "task/scheduler.h"
 
 uint32 tick = 0;
 
@@ -14,6 +15,8 @@ static void timer_callback(isr_params_t regs) {
     //monitor_printf("second: %d\n", tick / TIMER_FREQUENCY);
   }
   tick++;
+
+  maybe_context_switch();
 }
 
 void init_timer(uint32 frequency) {

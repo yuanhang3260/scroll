@@ -416,7 +416,7 @@ init_kernel:
   ; init floating point unit before entering the kernel
   finit
 
-  ; move stack to > 0xC0000000
+  ; move stack to 0xF0000000
   mov esp, KERNEL_STACK_TOP - 16
   mov ebp, esp
 
@@ -447,7 +447,7 @@ allocate_pages_for_kernel:
   mov ecx, 2
   push ecx  ; arg 3: num of pages
   push KERNEL_STACK_PHYSICAL_ADDR        ; arg 2: physical addr
-  push KERNEL_STACK_TOP - PAGE_SIZE * 2  ; arg 1: virtual addr
+  push KERNEL_STACK_TOP - PAGE_SIZE      ; arg 1: virtual addr
   call set_pages_mapping
   add esp, 12
 

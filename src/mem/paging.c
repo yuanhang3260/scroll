@@ -26,7 +26,6 @@ void init_paging() {
   }
   phy_frames_map = bitmap_create(bitarray, PHYSICAL_MEM_SIZE / PAGE_SIZE);
   bitmap_clear_bit(&phy_frames_map, PHYSICAL_MEM_SIZE / PAGE_SIZE - 1);
-  bitmap_clear_bit(&phy_frames_map, PHYSICAL_MEM_SIZE / PAGE_SIZE - 2);
 
   // Initialize page directory.
   kernel_page_directory.page_dir_entries_phy = (pde_t*)KERNEL_PAGE_DIR_PHY;

@@ -4,13 +4,15 @@
 #include "mem/kheap.h"
 #include "common/stdlib.h"
 
-static uint32 next_thread_id = 0;
+extern uint32 get_esp();
+
+static uint32 next_thread_id = 1;
 
 static void kernel_thread(thread_func* function, void* func_arg) {
   function(func_arg);
 }
 
-static tcb* create_thread(char* name, thread_func function, void* func_arg, uint32 priority) {
+tcb* init_thread(char* name, thread_func function, void* func_arg, uint32 priority) {
   // Allocate one page as tcb and kernel stack for each thread.
   tcb* thread = (tcb*)kmalloc_aligned(PAGE_SIZE);
   map_page((uint32)thread);
@@ -26,6 +28,7 @@ static tcb* create_thread(char* name, thread_func function, void* func_arg, uint
   }
 
   thread->status = TASK_RUNNING;
+  thread->ticks = 0;
   thread->priority = priority;
   thread->stack_magic = THREAD_STACK_MAGIC;
 
@@ -42,15 +45,6 @@ static tcb* create_thread(char* name, thread_func function, void* func_arg, uint
   kthread_stack->eip = kernel_thread;
   kthread_stack->function = function;
   kthread_stack->func_arg = func_arg;
-}
 
-tcb* thread_start(char* name, uint32 priority, thread_func function, void* func_arg) {
-  tcb* thread = create_thread(name, function, func_arg, priority);
-
-  asm volatile ("movl %0, %%esp; \
-    pop %%ebp; pop %%ebx; pop %%edi; pop %%esi; \
-    ret": : "g" (thread->self_kstack) : "memory");
   return thread;
 }
-
-void thread_yield() {}

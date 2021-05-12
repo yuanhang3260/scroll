@@ -54,6 +54,10 @@ void linked_list_insert(
   this->size++;
 }
 
+void linked_list_insert_to_head(linked_list_t* this, linked_list_node_t* new_node) {
+  linked_list_insert(this, this->head, new_node);  
+}
+
 void linked_list_remove(linked_list_t* this, linked_list_node_t* node) {
   linked_list_node_t* prev_node = node->prev;
   linked_list_node_t* next_node = node->next;

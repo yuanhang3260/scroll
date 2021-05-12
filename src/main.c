@@ -6,6 +6,7 @@
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "task/thread.h"
+#include "task/scheduler.h"
 #include "utils/debug.h"
 #include "utils/rand.h"
 #include "utils/linked_list.h"
@@ -40,7 +41,7 @@ int main() {
   //kheap_test();
   //kheap_killer();
 
-  thread_start("k_thread_a", 31, k_thread_a, 0);
+  //thread_start("k_thread_a", 31, k_thread_a, 0);
 
   monitor_println("idle...");
   while(1) {}
