@@ -10,12 +10,14 @@ void init_scheduler();
 void start_scheduler();
 
 // Create a new thread and add it to ready queue.
-tcb* create_thread(char* name, thread_func function, void* func_arg, uint32 priority);
+tcb_t* create_thread(char* name, thread_func function, void* func_arg, uint32 priority);
 
 // Called by timer interrupt handler.
 void maybe_context_switch();
 
 // Yield thread - give up cpu and move current thread to ready queue tail.
 void thread_yield();
+
+void thread_destroy(tcb_t* thread);
 
 #endif

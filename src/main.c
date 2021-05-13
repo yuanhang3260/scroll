@@ -15,7 +15,8 @@ char* welcome = "# welcome to scroll kernel #";
 
 void k_thread(void* arg) {
   char* str = (char*)arg;
-  while(1) {
+  for (int i = 0; i < 3; i++) {
+  //while(1) {
     monitor_println(str);
   }
 }
@@ -29,8 +30,6 @@ int main() {
   init_timer(TIMER_FREQUENCY);
 
   init_paging();
-  //memory_killer();
-
   init_kheap();
   //kheap_test();
   //kheap_killer();

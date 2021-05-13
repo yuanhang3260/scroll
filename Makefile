@@ -13,6 +13,7 @@ OBJS_C = \
 	$(OBJ_DIR)/interrupt/interrupt.o \
 	$(OBJ_DIR)/interrupt/idt.o \
 	$(OBJ_DIR)/interrupt/timer.o \
+	$(OBJ_DIR)/mem/gdt.o \
 	$(OBJ_DIR)/mem/paging.o \
 	$(OBJ_DIR)/mem/kheap.o \
 	$(OBJ_DIR)/task/thread.o \

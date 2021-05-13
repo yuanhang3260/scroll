@@ -5,20 +5,26 @@ cpu_idle:
   hlt
 
 context_switch:
-  push esi
-  push edi
+  push eax
+  push ecx
+  push edx
   push ebx
   push ebp
-  mov eax, [esp + 20]
+  push esi
+  push edi
+  mov eax, [esp + 32]
   mov [eax], esp
 
   ; jump to next thread's kernel stack and recover its execution
-  mov eax, [esp + 24]
+  mov eax, [esp + 36]
   mov esp, [eax]
-  pop ebp
-  pop ebx
   pop edi
   pop esi
+  pop ebp
+  pop ebx
+  pop edx
+  pop ecx
+  pop eax
 
   sti
   ret

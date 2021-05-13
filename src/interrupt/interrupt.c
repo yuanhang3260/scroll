@@ -3,6 +3,7 @@
 #include "common/stdlib.h"
 #include "monitor/monitor.h"
 #include "interrupt/interrupt.h"
+#include "utils/debug.h"
 
 extern void reload_idt(uint32);
 static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs);
@@ -106,6 +107,7 @@ void isr_handler(isr_params_t params) {
     handler(params);
   } else {
     monitor_printf("unknown interrupt: %d\n", int_num);
+    PANIC();
   }
 }
 
@@ -122,7 +124,7 @@ void disable_interrupt() {
   asm volatile ("cli");
 }
 
-static void init_pic() {
+void init_pic() {
   // master
   outb(0x20, 0x11);
   outb(0x21, 0x20);
