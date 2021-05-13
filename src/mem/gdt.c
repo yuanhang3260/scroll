@@ -1,7 +1,13 @@
 #include "mem/gdt.h"
 
+extern void load_gdt(gdt_ptr_t*);
+
 static gdt_ptr_t gdt_ptr;
 static gdt_entry_t gdt_entries[6];
+
+void refresh_gdt() {
+  load_gdt(&gdt_ptr);
+}
 
 void init_gdt() {
   gdt_ptr.limit = (sizeof(gdt_entry_t) * 6) - 1;
@@ -20,6 +26,8 @@ void init_gdt() {
   gdt_set_gate(4, 0, 0xFFFFF, DESC_P | DESC_DPL_3 | DESC_TYPE_DATA | DESC_TYPE_DATA, FLAG_G_4K | FLAG_D_32);
   // user data
   gdt_set_gate(5, 0, 0xFFFFF, DESC_P | DESC_DPL_3 | DESC_TYPE_CODE | DESC_TYPE_CODE, FLAG_G_4K | FLAG_D_32);
+
+  refresh_gdt((uint32)&gdt_ptr);
 }
 
 void gdt_set_gate(int32 num, uint32 base, uint32 limit, uint8 access, uint8 flags) {
