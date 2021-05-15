@@ -335,7 +335,7 @@ void kheap_killer() {
   rand_seed(5);
 
   monitor_printf("kheap stress test ... ");
-  for (uint32 loop = 0; loop < 10; loop++) {
+  for (uint32 loop = 0; loop < 5; loop++) {
     // alloc
     uint8* ptrs[size * 2];
     for (int i = 0; i < size; i++) {

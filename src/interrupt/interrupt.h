@@ -4,6 +4,17 @@
 #include "common/common.h"
 #include "common/global.h"
 
+#define IDT_GATE_P     1
+#define IDT_GATE_DPL0  0
+#define IDT_GATE_DPL3  3
+#define IDT_GATE_32_TYPE  0xE
+
+#define IDT_GATE_ATTR_DPL0 \
+  ((IDT_GATE_P << 7) + (IDT_GATE_DPL0 << 5) + IDT_GATE_32_TYPE)
+
+#define IDT_GATE_ATTR_DPL3 \
+  ((IDT_GATE_P << 7) + (IDT_GATE_DPL3 << 5) + IDT_GATE_32_TYPE)
+
 // ******************************** idt ****************************************
 struct idt_entry_struct {
   // the lower 16 bits of the handler address

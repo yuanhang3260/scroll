@@ -3,6 +3,7 @@
 #include "monitor/monitor.h"
 #include "interrupt/timer.h"
 #include "interrupt/interrupt.h"
+#include "mem/gdt.h"
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "task/thread.h"
@@ -22,6 +23,8 @@ void k_thread(void* arg) {
 }
 
 int main() {
+  init_gdt();
+
   monitor_clear();
   monitor_println(welcome);
 

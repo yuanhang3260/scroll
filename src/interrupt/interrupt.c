@@ -1,6 +1,6 @@
-#include "common/global.h"
 #include "common/io.h"
 #include "common/stdlib.h"
+#include "mem/gdt.h"
 #include "monitor/monitor.h"
 #include "interrupt/interrupt.h"
 #include "utils/debug.h"
