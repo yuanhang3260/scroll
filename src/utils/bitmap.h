@@ -7,6 +7,7 @@
 // argument struct for common isr_handler
 typedef struct bit_map {
   uint32* array;
+  uint8 alloc_array;
   int array_size;  // size of the array
   int total_bits;
 } bitmap_t;
@@ -18,6 +19,8 @@ void bitmap_set_bit(bitmap_t* this, uint32 bit);
 void bitmap_clear_bit(bitmap_t* this, uint32 bit);
 
 uint32 bitmap_test_bit(bitmap_t* this, uint32 bit);
+
+void bitmap_destroy(bitmap_t* this);
 
 // Returns sucess or not.
 // The result bit is stored in argument *bit.

@@ -80,7 +80,7 @@ typedef struct isr_params {
   uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
   uint32 int_num;
   uint32 err_code;
-  uint32 eip, cs, eflags, useresp, ss;
+  uint32 eip, cs, eflags, user_esp, user_ss;
 } isr_params_t;
 
 typedef void (*isr_t)(isr_params_t);

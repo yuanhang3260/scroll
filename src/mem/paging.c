@@ -11,7 +11,7 @@ void* kernel_placement_addr = (void*)KERNEL_PLACEMENT_ADDR_START;
 page_directory_t kernel_page_directory;
 
 // the current page directory;
-page_directory_t *current_page_directory = 0;
+page_directory_t* current_page_directory = 0;
 
 static bitmap_t phy_frames_map;
 uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
@@ -169,7 +169,7 @@ void release_pages(uint32 virtual_addr, uint32 pages) {
 //  - user space page tables are copied, and page entries are marked copy-on-write;
 //
 // Return the physical address of new page dir.
-uint32 clone_page_dir() {
+uint32 clone_crt_page_dir() {
   int32 new_pd_frame = allocate_phy_frame();
   if (new_pd_frame < 0) {
     monitor_printf("couldn't alloc frame for new page dir\n");

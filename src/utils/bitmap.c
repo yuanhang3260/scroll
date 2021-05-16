@@ -1,13 +1,20 @@
 #include "utils/bitmap.h"
+#include "mem/kheap.h"
 
 #define INDEX_FROM_BIT(a) (a/32)
 #define OFFSET_FROM_BIT(a) (a%32)
 
 bitmap_t bitmap_create(uint32* array, int total_bits) {
   bitmap_t ret;
-  ret.array = array;
   ret.total_bits = total_bits;
   ret.array_size = total_bits / 32;
+  if (array == 0) {
+    array = (uint32*)kmalloc(ret.array_size);
+    ret.alloc_array = 1;
+  } else {
+    ret.alloc_array = 0;
+  }
+  ret.array = array;
   return ret;
 }
 
@@ -54,4 +61,11 @@ uint32 bitmap_allocate_first_free(bitmap_t* this, uint32* bit) {
 
   bitmap_set_bit(this, *bit);
   return 1;
+}
+
+void bitmap_destroy(bitmap_t* this) {
+  if (this->alloc_array) {
+    kfree(this->array);
+  }
+  kfree(this);
 }

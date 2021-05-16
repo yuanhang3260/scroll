@@ -1,6 +1,10 @@
 #ifndef COMMON_COMMON_H
 #define COMMON_COMMON_H
 
+#define nullptr 0
+#define true  1
+#define false 0
+
 typedef void* type_t;
 
 typedef unsigned long long  uint64;

@@ -1,4 +1,5 @@
 [GLOBAL reload_idt]
+[GLOBAL interrupt_exit]
 
 reload_idt:
   mov eax, [esp + 4]  ; arg 1
@@ -78,6 +79,7 @@ isr_common_stub:
 
   call isr_handler
 
+interrupt_exit:
   ; recover the original data segment
   pop eax
   mov ds, ax
@@ -86,12 +88,12 @@ isr_common_stub:
   mov gs, ax
 
   popa
-  ; cleans up the pushed error code and pushed ISR number
+  ; clean up the pushed error code and pushed ISR number
   add esp, 8
 
   ; make sure interrupt is enabled
   sti
-  ; pops CS, EIP, EFLAGS, SS, and ESP by processor
+  ; pop cs, eip, eflags, user_ss, and user_esp by processor
   iret
 
 

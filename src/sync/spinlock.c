@@ -8,7 +8,7 @@ void spinlock_lock(spinlock_t *spinlock) {
   while (atomic_exchange(&spinlock->hold , LOCKED_YES) != LOCKED_NO) {
     // on single-core processor, yield this thread.
     #ifdef SINGLE_PROCESSOR
-      thread_yield();
+      schedule_thread_yield();
     #else
       // TODO: on multi-core processor, just loop spinning.
     #endif

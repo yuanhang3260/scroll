@@ -73,7 +73,7 @@ void switch_page_directory(page_directory_t *new);
 void page_fault_handler(isr_params_t params);
 
 // Clonse page directory for a new process.
-uint32 clone_page_dir();
+uint32 clone_crt_page_dir();
 
 
 // ******************************** unit tests **********************************

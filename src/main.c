@@ -7,6 +7,7 @@
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "task/thread.h"
+#include "task/process.h"
 #include "task/scheduler.h"
 #include "utils/debug.h"
 #include "utils/rand.h"
@@ -14,12 +15,12 @@
 
 char* welcome = "# welcome to scroll kernel #";
 
-void k_thread(void* arg) {
-  char* str = (char*)arg;
-  for (int i = 0; i < 3; i++) {
-  //while(1) {
-    monitor_println(str);
+void test_thread(int argc, char* argv[]) {
+  monitor_printf("argc = %d\n", argc);
+  for (int i = 0; i < argc; i++) {
+    monitor_printf("arg: %s\n", argv[i]);
   }
+  while(1) {}
 }
 
 int main() {
@@ -38,8 +39,14 @@ int main() {
   //kheap_killer();
 
   init_scheduler();
-  create_thread("k-thread-1", k_thread, "k-thread-1", 20);
-  create_thread("k-thread-2", k_thread, "k-thread-2", 20);
+
+  char* argv[2];
+  argv[0] = "hello";
+  argv[1] = "scroll";
+
+  pcb_t* process = create_process(nullptr, /* is_kernel_process = */false);
+  tcb_t* thread = create_new_user_thread(process, nullptr, test_thread, 2, argv);
+  add_thread_to_schedule(thread);
 
   start_scheduler();
 

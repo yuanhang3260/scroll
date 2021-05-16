@@ -31,6 +31,9 @@ void linked_list_insert_to_head(linked_list_t* this, linked_list_node_t* new_nod
 
 void linked_list_remove(linked_list_t* this, linked_list_node_t* n);
 
+void linked_list_append_ele(linked_list_t* this, type_t ptr);
+void linked_list_remove_ele(linked_list_t* this, type_t ptr);
+
 
 // ******************************** unit tests **********************************
 void linked_list_test();

@@ -18,6 +18,7 @@ OBJS_C = \
 	$(OBJ_DIR)/mem/paging.o \
 	$(OBJ_DIR)/mem/kheap.o \
 	$(OBJ_DIR)/task/thread.o \
+	$(OBJ_DIR)/task/process.o \
 	$(OBJ_DIR)/task/scheduler.o \
 	$(OBJ_DIR)/task/schedule.o \
 	$(OBJ_DIR)/sync/cas.o \
@@ -29,7 +30,7 @@ OBJS_C = \
 
 OBJS_ASM = \
 
-CC=gcc
+CC=gcc -Werror
 ASM=nasm
 CFLAGS=-m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -no-pie -fno-pic
 IFLAGS=-I${SRC_DIR}

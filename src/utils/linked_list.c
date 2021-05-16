@@ -77,6 +77,21 @@ void linked_list_remove(linked_list_t* this, linked_list_node_t* node) {
   this->size--;
 }
 
+void linked_list_append_ele(linked_list_t* this, type_t ptr) {
+  linked_list_node_t* node = (linked_list_node_t*)kmalloc(sizeof(linked_list_node_t));
+  node->ptr = (void*)ptr;
+  linked_list_append(this, node);
+}
+
+void linked_list_remove_ele(linked_list_t* this, type_t ptr) {
+  linked_list_node_t* node = this->head;
+  while (node != 0) {
+    if (node->ptr == ptr) {
+      linked_list_remove(this, node);
+      break;
+    }
+  }
+}
 
 // ****************************************************************************
 void linked_list_test() {

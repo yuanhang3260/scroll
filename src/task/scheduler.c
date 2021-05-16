@@ -9,6 +9,7 @@
 extern void cpu_idle();
 extern void context_switch(tcb_t* crt, tcb_t* next);
 
+static pcb_t* main_process;
 static tcb_t* main_thread;
 static tcb_t* crt_thread;
 
@@ -34,7 +35,21 @@ static void kernel_main_thread() {
   }
 }
 
-static void thread_start(tcb_t* thread) {
+void init_scheduler() {
+  // Init task queues.
+  ready_tasks = create_linked_list();
+  blocking_tasks = create_linked_list();
+
+  // Create process 0: kernel main
+  main_process = create_process("kernel_main_process", /* is_kernel_process = */true);
+
+  main_thread = create_new_kernel_thread(
+      main_process, "kernel_main_thread", kernel_main_thread, nullptr);
+  crt_thread = main_thread;
+}
+
+void start_scheduler() {
+  // Start the main thread.
   asm volatile (
    "movl %0, %%esp; \
     pop %%edi; \
@@ -44,37 +59,18 @@ static void thread_start(tcb_t* thread) {
     pop %%edx; \
     pop %%ecx; \
     pop %%eax; \
-    ret": : "g" (thread->self_kstack) : "memory");
-}
+    ret": : "g" (main_thread->self_kstack) : "memory");
 
-void init_scheduler() {
-  // Init task queues.
-  ready_tasks = create_linked_list();
-  blocking_tasks = create_linked_list();
-
-  // Create kernel main thread.
-  main_thread = init_thread("kernel_main_thread", kernel_main_thread, (void*)0, 10);
-  crt_thread = main_thread;
-}
-
-void start_scheduler() {
-  thread_start(main_thread);
   // Never should reach here!
   PANIC();
 }
 
-tcb_t* create_thread(char* name, thread_func function, void* func_arg, uint32 priority) {
-  if (priority == 0) {
-    priority = 10;
-  }
-  tcb_t* thread = init_thread(name, function, func_arg, priority);
+void add_thread_to_schedule(tcb_t* thread) {
   linked_list_node_t* node = (linked_list_node_t*)kmalloc(sizeof(linked_list_node_t));
   node->ptr = (void*)thread;
   disable_interrupt();
   linked_list_append(&ready_tasks, node);
   enable_interrupt();
-
-  return thread;
 }
 
 static void do_context_switch() {
@@ -100,6 +96,7 @@ static void do_context_switch() {
 
 void maybe_context_switch() {
   disable_interrupt();
+  monitor_println("context_switch");
   uint32 can_context_switch = 0;
   if (ready_tasks.size > 0) {
     crt_thread->ticks++;
@@ -111,15 +108,15 @@ void maybe_context_switch() {
   }
 
   if (can_context_switch) {
-    //monitor_println("context_switch yes");
+    monitor_println("context_switch yes");
     do_context_switch();
   } else {
-    //monitor_println("context_switch no");
+    monitor_println("context_switch no");
     enable_interrupt();
   }
 }
 
-void thread_yield() {
+void schedule_thread_yield() {
   disable_interrupt();
   if (ready_tasks.size > 0) {
     do_context_switch();
@@ -129,7 +126,7 @@ void thread_yield() {
 }
 
 // Put this thread to died_tasks queue, and wake up main thread to 
-void thread_destroy(tcb_t* thread) {
+void schedule_thread_exit(tcb_t* thread) {
   thread->status = TASK_DIED;
   linked_list_node_t* node = (linked_list_node_t*)kmalloc(sizeof(linked_list_node_t));
   node->ptr = (void*)thread;
