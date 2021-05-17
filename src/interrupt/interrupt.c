@@ -6,6 +6,8 @@
 #include "utils/debug.h"
 
 extern void reload_idt(uint32);
+extern void syscall_entry();
+
 static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs);
 static void init_pic();
 
@@ -69,6 +71,8 @@ void init_idt() {
   set_idt_gate(45, (uint32)irq13, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
   set_idt_gate(46, (uint32)irq14, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
   set_idt_gate(47, (uint32)irq15, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+
+  set_idt_gate(SYSCALL_INT_NUM, (uint32)syscall_entry , SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
 
   // refresh idt
   reload_idt((uint32)&idt_ptr);

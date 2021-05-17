@@ -17,7 +17,7 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
   memset(process, 0, sizeof(pcb_t));
 
   process->id = next_pid++;
-  if (name != 0) {
+  if (name != nullptr) {
     strcpy(process->name, name);
   } else {
     char buf[32];
@@ -27,11 +27,10 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
 
   process->is_kernel_process = is_kernel_process;
 
-  process->user_thread_stack_indexes = bitmap_create(0, USER_PRCOESS_THREDS_MAX);
+  process->user_thread_stack_indexes = bitmap_create(nullptr, USER_PRCOESS_THREDS_MAX);
 
-  // TODO: clone current page directory;
-  //process->page_dir = clone_crt_page_dir();
-  process->page_dir = get_crt_page_directory();
+  process->page_dir = clone_crt_page_dir();
+  //process->page_dir = *get_crt_page_directory();
 
   return process;
 }
@@ -55,9 +54,17 @@ tcb_t* create_new_user_thread(
   if (!bitmap_allocate_first_free(&process->user_thread_stack_indexes, &stack_index)) {
     return 0;
   }
+  thread->user_stack_index = stack_index;
   uint32 thread_stack_top = USER_STACK_TOP - stack_index * USER_STACK_SIZE;
-  map_page((uint32)thread_stack_top - PAGE_SIZE);
-  prepare_user_stack(thread, thread_stack_top, argc, argv, (uint32)schedule_thread_exit);
+  //map_page((uint32)thread_stack_top - PAGE_SIZE);
+  prepare_user_stack(thread, thread_stack_top, argc, argv, (uint32)schedule_thread_exit_normal);
 
   return thread;
+}
+
+int32 process_fork() {
+}
+
+int32 process_exec(char* path, uint32 argc, char* argv[]) {
+
 }

@@ -17,6 +17,7 @@ void maybe_context_switch();
 // Yield thread - give up cpu and move current thread to ready queue tail.
 void schedule_thread_yield();
 
-void schedule_thread_exit(tcb_t* thread);
+void schedule_thread_exit(int32 exit_code);
+void schedule_thread_exit_normal();
 
 #endif

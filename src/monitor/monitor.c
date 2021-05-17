@@ -151,10 +151,14 @@ void monitor_write_hex_withc_color(uint32 n, uint8 color) {
   }
 }
 
-void monitor_write_dec_with_color(uint32 n, uint8 color) {
+void monitor_write_dec_with_color(int32 n, uint8 color) {
   if (n == 0) {
     monitor_write_char_with_color('0', color);
     return;
+  }
+  if (n < 0) {
+    monitor_write_char_with_color('-', color);
+    n = -n;
   }
 
   uint32 acc = n;

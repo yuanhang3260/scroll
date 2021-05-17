@@ -4,9 +4,6 @@
 #include "monitor/monitor.h"
 #include "utils/debug.h"
 
-// 0xC0900000
-void* kernel_placement_addr = (void*)KERNEL_PLACEMENT_ADDR_START;
-
 // kernel's page directory
 page_directory_t kernel_page_directory;
 
@@ -174,7 +171,7 @@ void release_pages(uint32 virtual_addr, uint32 pages) {
 //  - user space page tables are copied, and page entries are marked copy-on-write;
 //
 // Return the physical address of new page dir.
-uint32 clone_crt_page_dir() {
+page_directory_t clone_crt_page_dir() {
   int32 new_pd_frame = allocate_phy_frame();
   if (new_pd_frame < 0) {
     monitor_printf("couldn't alloc frame for new page dir\n");
@@ -182,16 +179,17 @@ uint32 clone_crt_page_dir() {
   }
 
   // Map copied page tables (including the new page dir) to some virtual space so that
-  // we can access them - let's use the last 4MB virtual space, 0xFFC00000 - 0xFFFFFFFF.
+  // we can access them - let's use the last 2 virtual pages (0xFFFFE000 - 0xFFFFFFFF), for the
+  // new page dir and the page table that is being copied, respectively.
   //
   // First, map the new page dir.
-  uint32 new_page_tables_vaddr = COPIED_PAGE_TABLES_VADDR;
-  map_page_with_frame(new_page_tables_vaddr, new_pd_frame);
-  memset((void*)new_page_tables_vaddr, 0, PAGE_SIZE);
+  map_page_with_frame(COPIED_PAGE_DIR_VADDR, new_pd_frame);
+  reload_page_directory(current_page_directory);
+  memset((void*)COPIED_PAGE_DIR_VADDR, 0, PAGE_SIZE);
 
-  pde_t* new_pd = (pde_t*)COPIED_PAGE_TABLES_VADDR;
+  pde_t* new_pd = (pde_t*)COPIED_PAGE_DIR_VADDR;
   pde_t* crt_pd = (pde_t*)PAGE_DIR_VIRTUAL;
-  // Share all 256 kernel pdes - except pde 769, which should points to page dir itself.
+  // Share all 256 kernel pdes - except pde 769, which should points to new page dir itself.
   for (uint32 i = 768; i < 1024; i++) {
     pde_t* new_pde = new_pd + i;
     if (i == 769) {
@@ -204,12 +202,13 @@ uint32 clone_crt_page_dir() {
     }
   }
 
-  // Copy user space page tables, and set pages copy-on-write.
+  // Copy user space page tables.
   for (uint32 i = 0; i < 768; i++) {
     pde_t* crt_pde = crt_pd + i;
     if (!crt_pde->present) {
       continue;
     }
+
     // Alloc a new frame for copied page table.
     int32 new_pt_frame = allocate_phy_frame();
     if (new_pt_frame < 0) {
@@ -217,23 +216,39 @@ uint32 clone_crt_page_dir() {
       PANIC();
     }
 
-    new_page_tables_vaddr += PAGE_SIZE;
-    map_page_with_frame(new_page_tables_vaddr, new_pt_frame);
-    pte_t* new_pt = (pte_t*)new_page_tables_vaddr;
-    pte_t* crt_pt = ((pte_t*)PAGE_TABLES_VIRTUAL) + i;
-    *new_pt = *crt_pt;
-    
-    // TODO: Set copied ptes copy-on-write.
+    // Copy page table and set its ptes copy-on-write.
+    map_page_with_frame(COPIED_PAGE_TABLE_VADDR, new_pt_frame);
+    reload_page_directory(current_page_directory);
+    memcpy((void*)COPIED_PAGE_TABLE_VADDR, (void*)(PAGE_TABLES_VIRTUAL + i * PAGE_SIZE), PAGE_SIZE);
+    for (int j = 0; j < 1024; j++) {
+      pte_t* pte = (pte_t*)COPIED_PAGE_TABLE_VADDR + i;
+      if (!pte->present) {
+        continue;
+      }
+      // copy-on-write
+      pte->rw = 0;
+    }
 
-    // Release mapping for new page tables on current process.
-    release_pages(COPIED_PAGE_TABLES_VADDR, 1024);
+    // Set page dir entry.
+    pde_t* new_pde = new_pd + i;
+    new_pde->present = 1;
+    new_pde->rw = 1;
+    new_pde->user = 1;
+    new_pde->frame = new_pt_frame;
   }
+
+  // Release mapping for new page tables on current process.
+  release_pages(COPIED_PAGE_DIR_VADDR, 2);
+
+  page_directory_t page_directory;
+  page_directory.page_dir_entries_phy = new_pd_frame * PAGE_SIZE;
+  return page_directory;
 }
 
 // ******************************** unit tests **********************************
 void memory_killer() {
-  uint32 *ptr = (uint32*)KERNEL_PLACEMENT_ADDR_START;
-  while(1) {
+  uint32 *ptr = (uint32*)0xC0900000;
+  while (1) {
     *ptr = 3;
     ptr += 1;
   }

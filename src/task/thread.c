@@ -15,7 +15,7 @@ static void kernel_thread(thread_func* function, char** func_arg, tcb_t* thread)
   if (thread->process->is_kernel_process) {
     // Kernel thread.
     function(func_arg);
-    schedule_thread_exit(thread);
+    schedule_thread_exit(0);
   } else {
     // User thread - switch to user space.
     uint32 interrupt_stack = (uint32)thread->self_kstack + sizeof(switch_stack_t);
@@ -31,7 +31,7 @@ tcb_t* init_thread(char* name, thread_func function, uint32 argc, char** argv,
   memset(thread, 0, sizeof(tcb_t));
 
   thread->id = next_thread_id++;
-  if (name != 0) {
+  if (name != nullptr) {
     strcpy(thread->name, name);
   } else {
     char buf[32];
@@ -42,6 +42,7 @@ tcb_t* init_thread(char* name, thread_func function, uint32 argc, char** argv,
   thread->status = TASK_READY;
   thread->ticks = 0;
   thread->priority = priority;
+  thread->user_stack_index = -1;
   thread->stack_magic = THREAD_STACK_MAGIC;
 
   // Init thread stack.

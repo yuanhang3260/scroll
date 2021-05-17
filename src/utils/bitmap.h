@@ -18,13 +18,13 @@ void bitmap_set_bit(bitmap_t* this, uint32 bit);
 
 void bitmap_clear_bit(bitmap_t* this, uint32 bit);
 
-uint32 bitmap_test_bit(bitmap_t* this, uint32 bit);
+bool bitmap_test_bit(bitmap_t* this, uint32 bit);
 
 void bitmap_destroy(bitmap_t* this);
 
 // Returns sucess or not.
 // The result bit is stored in argument *bit.
-uint32 bitmap_find_first_free(bitmap_t* this, uint32* bit);
-uint32 bitmap_allocate_first_free(bitmap_t* this, uint32* bit);
+bool bitmap_find_first_free(bitmap_t* this, uint32* bit);
+bool bitmap_allocate_first_free(bitmap_t* this, uint32* bit);
 
 #endif

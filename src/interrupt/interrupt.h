@@ -105,6 +105,8 @@ void register_interrupt_handler(uint8 n, isr_t handler);
 #define IRQ14_INT_NUM 46
 #define IRQ15_INT_NUM 47
 
+#define SYSCALL_INT_NUM 0x80
+
 extern void irq0 ();
 extern void irq1 ();
 extern void irq2 ();

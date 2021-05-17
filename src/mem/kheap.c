@@ -200,7 +200,7 @@ void* alloc(kheap_t *this, uint32 size, uint8 page_align) {
 }
 
 void free(kheap_t* this, void* ptr) {
-  if (ptr == 0) {
+  if (ptr == nullptr) {
     return;
   }
 
@@ -289,7 +289,7 @@ void* kmalloc_aligned(uint32 size) {
 }
 
 void kfree(void* ptr) {
-  if (ptr == 0) {
+  if (ptr == nullptr) {
     return;
   }
   free(&kheap, ptr);

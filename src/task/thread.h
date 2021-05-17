@@ -41,6 +41,7 @@ struct task_struct {
   struct process_struct* process;
   // user stack
   uint32 user_stack;
+  int32 user_stack_index;
   // boundary of tcb_t and thread stack.
   uint32 stack_magic;
 };

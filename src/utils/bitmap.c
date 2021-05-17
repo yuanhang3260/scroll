@@ -1,3 +1,4 @@
+#include "common/common.h"
 #include "utils/bitmap.h"
 #include "mem/kheap.h"
 
@@ -8,7 +9,7 @@ bitmap_t bitmap_create(uint32* array, int total_bits) {
   bitmap_t ret;
   ret.total_bits = total_bits;
   ret.array_size = total_bits / 32;
-  if (array == 0) {
+  if (array == nullptr) {
     array = (uint32*)kmalloc(ret.array_size);
     ret.alloc_array = 1;
   } else {
@@ -30,13 +31,13 @@ void bitmap_clear_bit(bitmap_t* this, uint32 bit) {
   this->array[idx] &= ~(0x1 << off);
 }
 
-uint32 bitmap_test_bit(bitmap_t* this, uint32 bit) {
+bool bitmap_test_bit(bitmap_t* this, uint32 bit) {
   uint32 idx = INDEX_FROM_BIT(bit);
   uint32 off = OFFSET_FROM_BIT(bit);
-  return (this->array[idx] & (0x1 << off));
+  return (this->array[idx] & (0x1 << off)) != 0;
 }
 
-uint32 bitmap_find_first_free(bitmap_t* this, uint32* bit) {
+bool bitmap_find_first_free(bitmap_t* this, uint32* bit) {
   uint32 i, j;
   for (i = 0; i < this->array_size; i++) {
     uint32 ele = this->array[i];
@@ -44,23 +45,23 @@ uint32 bitmap_find_first_free(bitmap_t* this, uint32* bit) {
       for (j = 0; j < 32; j++) {
         if (!(ele & (0x1 << j))) {
           *bit = i * 32 + j;
-          return 1;
+          return true;
         }
       }
     }
   }
 
-  return 0;
+  return false;
 }
 
-uint32 bitmap_allocate_first_free(bitmap_t* this, uint32* bit) {
-  uint32 success = bitmap_find_first_free(this, bit);
+bool bitmap_allocate_first_free(bitmap_t* this, uint32* bit) {
+  bool success = bitmap_find_first_free(this, bit);
   if (!success) {
-    return 0;
+    return false;
   }
 
   bitmap_set_bit(this, *bit);
-  return 1;
+  return true;
 }
 
 void bitmap_destroy(bitmap_t* this) {

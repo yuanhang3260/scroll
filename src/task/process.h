@@ -17,7 +17,7 @@ struct process_struct {
   // allocate user space thread for threads.
   bitmap_t user_thread_stack_indexes;
   // page directory.
-  page_directory_t* page_dir;
+  page_directory_t page_dir;
   // is kernel process?
   uint8 is_kernel_process;
 };
@@ -31,5 +31,8 @@ struct task_struct* create_new_kernel_thread(
     pcb_t* process, char* name, void* function, char** argv);
 struct task_struct* create_new_user_thread(
     pcb_t* process, char* name, void* user_function, uint32 argc, char** argv);
+
+int32 process_fork();
+int32 process_exec(char* path, uint32 argc, char* argv[]);
 
 #endif

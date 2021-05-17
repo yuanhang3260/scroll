@@ -21,6 +21,10 @@ OBJS_C = \
 	$(OBJ_DIR)/task/process.o \
 	$(OBJ_DIR)/task/scheduler.o \
 	$(OBJ_DIR)/task/schedule.o \
+	$(OBJ_DIR)/syscall/syscall_wrapper.o \
+	$(OBJ_DIR)/syscall/syscall_impl.o \
+	$(OBJ_DIR)/syscall/syscall.o \
+	$(OBJ_DIR)/syscall/syscall_trigger.o \
 	$(OBJ_DIR)/sync/cas.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
@@ -121,6 +125,18 @@ $(OBJ_DIR)/task/%.o: $(SRC_DIR)/task/%.c $(SRC_DIR)/task/%.h
 
 $(OBJ_DIR)/task/%.o: $(SRC_DIR)/task/%.S
 	mkdir -p $(OBJ_DIR)/task
+	$(ASM) $(ASFLAGS) $< -o $@
+
+$(OBJ_DIR)/syscall/%.o: $(SRC_DIR)/syscall/%.c
+	mkdir -p $(OBJ_DIR)/syscall
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/syscall/%.o: $(SRC_DIR)/syscall/%.c $(SRC_DIR)/syscall/%.h
+	mkdir -p $(OBJ_DIR)/syscall
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/syscall/%.o: $(SRC_DIR)/syscall/%.S
+	mkdir -p $(OBJ_DIR)/syscall
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.c
