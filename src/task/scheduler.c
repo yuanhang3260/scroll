@@ -2,7 +2,9 @@
 #include "task/thread.h"
 #include "task/scheduler.h"
 #include "interrupt/interrupt.h"
+#include "mem/gdt.h"
 #include "mem/kheap.h"
+#include "mem/paging.h"
 #include "utils/linked_list.h"
 #include "utils/debug.h"
 
@@ -73,6 +75,10 @@ void add_thread_to_schedule(tcb_t* thread) {
   enable_interrupt();
 }
 
+static void process_switch(pcb_t* process) {
+  reload_page_directory(process->page_dir);
+}
+
 static void do_context_switch() {
   // Context switch to next thread.
   linked_list_node_t* head = ready_tasks.head;
@@ -91,12 +97,17 @@ static void do_context_switch() {
   if (next_thread == main_thread) {
     main_thread_in_ready_queue = 0;
   }
+
+  update_tss_esp((uint32)next_thread + PAGE_SIZE);
+  if (old_thread->process != next_thread->process) {
+    process_switch(next_thread->process);
+  }
+
   context_switch(old_thread, next_thread);
 }
 
 void maybe_context_switch() {
   disable_interrupt();
-  monitor_println("context_switch");
   uint32 can_context_switch = 0;
   if (ready_tasks.size > 0) {
     crt_thread->ticks++;
@@ -108,10 +119,10 @@ void maybe_context_switch() {
   }
 
   if (can_context_switch) {
-    monitor_println("context_switch yes");
+    //monitor_println("context_switch yes");
     do_context_switch();
   } else {
-    monitor_println("context_switch no");
+    //monitor_println("context_switch no");
     enable_interrupt();
   }
 }

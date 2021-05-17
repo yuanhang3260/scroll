@@ -20,7 +20,9 @@ void test_thread(int argc, char* argv[]) {
   for (int i = 0; i < argc; i++) {
     monitor_printf("arg: %s\n", argv[i]);
   }
-  while(1) {}
+  while(1) {
+    monitor_println(argv[2]);
+  }
 }
 
 int main() {
@@ -40,13 +42,20 @@ int main() {
 
   init_scheduler();
 
+  pcb_t* process = create_process(nullptr, /* is_kernel_process = */false);
+
   char* argv[2];
   argv[0] = "hello";
   argv[1] = "scroll";
 
-  pcb_t* process = create_process(nullptr, /* is_kernel_process = */false);
   tcb_t* thread = create_new_user_thread(process, nullptr, test_thread, 2, argv);
   add_thread_to_schedule(thread);
+
+  char* argv2[2];
+  argv2[0] = "hello";
+  argv2[1] = "world";
+  tcb_t* thread2 = create_new_user_thread(process, nullptr, test_thread, 2, argv2);
+  add_thread_to_schedule(thread2);
 
   start_scheduler();
 

@@ -31,7 +31,7 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
 
   // TODO: clone current page directory;
   //process->page_dir = clone_crt_page_dir();
-  process->page_dir = (uint32)current_page_directory->page_dir_entries_phy;
+  process->page_dir = get_crt_page_directory();
 
   return process;
 }

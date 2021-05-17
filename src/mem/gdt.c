@@ -69,3 +69,7 @@ void init_gdt() {
   refresh_gdt((uint32)&gdt_ptr);
   refresh_tss();
 }
+
+void update_tss_esp(uint32 esp) {
+  tss_entry.esp0 = esp;
+}

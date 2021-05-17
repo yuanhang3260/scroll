@@ -48,7 +48,7 @@ typedef pte_t pde_t;
 
 // 4KB
 typedef struct page_directory {
-  pde_t* page_dir_entries_phy;  // [1024]
+  uint32 page_dir_entries_phy;  // [1024]
 } page_directory_t;
 
 
@@ -67,7 +67,8 @@ void release_page(uint32 virtual_addr);
 void release_pages(uint32 virtual_addr, uint32 pages);
 
 // Switch to a different page directory.
-void switch_page_directory(page_directory_t *new);
+page_directory_t* get_crt_page_directory();
+void reload_page_directory(page_directory_t* dir);
 
 // Page fault handler (interrupt no.14)
 void page_fault_handler(isr_params_t params);

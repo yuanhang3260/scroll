@@ -2,6 +2,7 @@
 #define TASK_PROCESS_H
 
 #include "task/thread.h"
+#include "mem/paging.h"
 #include "utils/bitmap.h"
 #include "utils/linked_list.h"
 
@@ -15,8 +16,8 @@ struct process_struct {
   linked_list_t threads;
   // allocate user space thread for threads.
   bitmap_t user_thread_stack_indexes;
-  // physical address of page directory.
-  uint32 page_dir;
+  // page directory.
+  page_directory_t* page_dir;
   // is kernel process?
   uint8 is_kernel_process;
 };

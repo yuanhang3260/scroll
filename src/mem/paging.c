@@ -28,7 +28,7 @@ void init_paging() {
   bitmap_clear_bit(&phy_frames_map, PHYSICAL_MEM_SIZE / PAGE_SIZE - 1);
 
   // Initialize page directory.
-  kernel_page_directory.page_dir_entries_phy = (pde_t*)KERNEL_PAGE_DIR_PHY;
+  kernel_page_directory.page_dir_entries_phy = KERNEL_PAGE_DIR_PHY;
   current_page_directory = &kernel_page_directory;
 
   // Release memory for loading kernel binany - it's no longer needed.
@@ -51,7 +51,7 @@ void release_phy_frame(uint32 frame) {
   bitmap_clear_bit(&phy_frames_map, frame);
 }
 
-void switch_page_directory(page_directory_t *dir) {
+void switch_page_directory(page_directory_t* dir) {
   current_page_directory = dir;
   asm volatile("mov %0, %%cr3":: "r"(dir->page_dir_entries_phy));
 
@@ -62,8 +62,13 @@ void switch_page_directory(page_directory_t *dir) {
   asm volatile("mov %0, %%cr0":: "r"(cr0));
 }
 
-void reload_page_table(page_directory_t *dir) {
+void reload_page_directory(page_directory_t *dir) {
+  current_page_directory = dir;
   asm volatile("mov %0, %%cr3":: "r"(dir->page_dir_entries_phy));
+}
+
+page_directory_t* get_crt_page_directory() {
+  return current_page_directory;
 }
 
 void page_fault_handler(isr_params_t params) {
@@ -89,7 +94,7 @@ void page_fault_handler(isr_params_t params) {
   //  faulting_address, present, rw, user_mode, reserved);
 
   map_page(faulting_address);
-  reload_page_table(current_page_directory);
+  reload_page_directory(current_page_directory);
 }
 
 void map_page(uint32 virtual_addr) {
@@ -161,7 +166,7 @@ void release_pages(uint32 virtual_addr, uint32 pages) {
     release_page(virtual_addr + i * PAGE_SIZE);
   }
 
-  reload_page_table(current_page_directory);
+  reload_page_directory(current_page_directory);
 }
 
 // Copy the entire page dir and its page tables:

@@ -93,4 +93,6 @@ typedef struct tss_entry_struct tss_entry_t;
 // ****************************************************************************
 void init_gdt();
 
+void update_tss_esp(uint32 esp);
+
 #endif
