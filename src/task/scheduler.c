@@ -23,6 +23,10 @@ static linked_list_t died_tasks;
 
 static bool main_thread_in_ready_queue = 0;
 
+tcb_t* get_crt_thread() {
+  return crt_thread;
+}
+
 static void kernel_main_thread(char* argv[]) {
   while (1) {
     // Clean died tasks.
@@ -31,6 +35,7 @@ static void kernel_main_thread(char* argv[]) {
       linked_list_remove(&died_tasks, head);
       tcb_t* thread = (tcb_t*)head->ptr;
       //monitor_printf("clean thread %s\n", thread->name);
+      //kheap_validate_print(1);
       kfree(head);
       kfree(thread);
     }
@@ -39,14 +44,40 @@ static void kernel_main_thread(char* argv[]) {
   }
 }
 
+static void first_user_program(uint32 argc, char* argv[]) {
+  monitor_println("****************************");
+  monitor_println("start first user app");
+  monitor_printf("argc = %d\n", argc);
+  for (uint32 i = 0; i < argc; i++) {
+    monitor_printf("argv[%d] = %s\n", i, argv[i]);
+  }
+
+  while(1) {}
+}
+
 static void ancestor_user_thread() {
   monitor_println("start ancestor user thread ...");
-  while (1) {}
+
+  int32 pid = fork();
+  if (pid < 0) {
+    monitor_println("fork failed");
+  } else if (pid > 0) {
+    // parent
+    monitor_printf("created child process %d\n", pid);
+  } else {
+    // child
+    monitor_printf("child process return\n");
+
+    char* argv[2];
+    argv[0] = "hello";
+    argv[1] = "hy";
+    exec((char*)first_user_program, 2, argv);
+  }
 }
 
 static void ancestor_kernel_thread(char* argv[]) {
   monitor_println("start ancestor kernel thread ...");
-  
+
   pcb_t* crt_process = crt_thread->process;
   tcb_t* thread = create_new_user_thread(crt_process, nullptr, ancestor_user_thread, 0, nullptr);
 
@@ -127,6 +158,7 @@ static void do_context_switch() {
     process_switch(next_thread->process);
   }
 
+  //monitor_printf("switch to thread %u\n", next_thread->id);
   context_switch(old_thread, next_thread);
 }
 
@@ -143,7 +175,7 @@ void maybe_context_switch() {
   }
 
   if (can_context_switch) {
-    //monitor_println("context_switch yes");
+    //monitor_printf("context_switch yes, %d ready tasks\n", ready_tasks.size);
     do_context_switch();
   } else {
     //monitor_println("context_switch no");
@@ -164,6 +196,7 @@ void schedule_thread_yield() {
 void schedule_thread_exit(int32 exit_code) {
   tcb_t* thread = crt_thread;
   // Remove this thread from its process and release resources.
+  // TODO: use lock
   disable_interrupt();
   pcb_t* process = thread->process;
   linked_list_remove_ele(&process->threads, thread);
@@ -182,8 +215,9 @@ void schedule_thread_exit(int32 exit_code) {
   // If any of these conditions matches, wake up the main thread to clean died tasks.
   //  - If died tasks queue length is over threshold;
   //  - If there is no other ready tasks to execute;
-  if (!main_thread_in_ready_queue && (died_tasks.size >= 1 || ready_tasks.size == 0)) {
+  if (!main_thread_in_ready_queue && (died_tasks.size >= 2 || ready_tasks.size == 0)) {
     linked_list_node_t* node = (linked_list_node_t*)kmalloc(sizeof(linked_list_node_t));
+    //monitor_println("wake up main thread clean");
     node->ptr = (void*)main_thread;
     linked_list_append(&ready_tasks, node);
     main_thread_in_ready_queue = 1;

@@ -20,6 +20,7 @@
 
 #define COPIED_PAGE_DIR_VADDR         0xFFFFE000
 #define COPIED_PAGE_TABLE_VADDR       0xFFFFF000
+#define COPIED_PAGE_VADDR             0xFFFFF000
 
 // ********************* physical memory layout ********************************
 // 0x00000000 ... 0x00100000  boot & reserved                                1MB
@@ -60,7 +61,7 @@ void release_phy_frame(uint32 frame);
 
 // Map virtual page to a physical frame.
 void map_page(uint32 virtual_addr);
-void map_page_with_frame(uint32 virtual_addr, int32 frame);
+
 // Release virtual page mapping and return the physical frame(s).
 void release_page(uint32 virtual_addr);
 void release_pages(uint32 virtual_addr, uint32 pages);

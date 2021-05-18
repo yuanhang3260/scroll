@@ -10,7 +10,7 @@ bitmap_t bitmap_create(uint32* array, int total_bits) {
   ret.total_bits = total_bits;
   ret.array_size = total_bits / 32;
   if (array == nullptr) {
-    array = (uint32*)kmalloc(ret.array_size);
+    array = (uint32*)kmalloc(ret.array_size * 4);
     ret.alloc_array = 1;
   } else {
     ret.alloc_array = 0;
@@ -62,6 +62,12 @@ bool bitmap_allocate_first_free(bitmap_t* this, uint32* bit) {
 
   bitmap_set_bit(this, *bit);
   return true;
+}
+
+void bitmap_clear(bitmap_t* this) {
+  for (uint32 i = 0; i < this->array_size; i++) {
+    this->array[i] = 0;
+  }
 }
 
 void bitmap_destroy(bitmap_t* this) {

@@ -7,7 +7,7 @@
 
 #define KERNEL_MAIN_STACK_TOP    0xF0000000
 #define THREAD_STACK_MAGIC       0x32602021
-#define THREAD_DEFAULT_PRIORITY  20
+#define THREAD_DEFAULT_PRIORITY  10
 
 #define EFLAGS_MBS    (1 << 1)
 #define EFLAGS_IF_0   (0 << 9)
@@ -42,12 +42,15 @@ struct task_struct {
   // user stack
   uint32 user_stack;
   int32 user_stack_index;
+  // syscall mark
+  bool syscall_ret;
   // boundary of tcb_t and thread stack.
   uint32 stack_magic;
 };
 typedef struct task_struct tcb_t;
 
 struct switch_stack {
+  // Switch context.
   uint32 edi;
   uint32 esi;
   uint32 ebp;
@@ -56,6 +59,7 @@ struct switch_stack {
   uint32 ecx;
   uint32 eax;
 
+  // Below are only used for thread first run, which enters kernel_thread.
   void (*eip)(thread_func* func, char** argv, tcb_t* thread);
 
   void (*unused_retaddr);
@@ -68,10 +72,12 @@ typedef struct switch_stack switch_stack_t;
 
 // ****************************************************************************
 // Create a new thread.
-tcb_t* init_thread(char* name, thread_func function, uint32 argc, char** argv,
+tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc, char** argv,
     uint8 user_thread, uint32 priority);
 
 uint32 prepare_user_stack(
     tcb_t* thread, uint32 stack_top, uint32 argc, char** argv, uint32 return_addr);
+
+tcb_t* fork_crt_thread();
 
 #endif

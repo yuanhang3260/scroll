@@ -17,18 +17,31 @@ static void kernel_thread(thread_func* function, char** func_arg, tcb_t* thread)
     function(func_arg);
     schedule_thread_exit(0);
   } else {
-    // User thread - switch to user space.
     uint32 interrupt_stack = (uint32)thread->self_kstack + sizeof(switch_stack_t);
-    asm volatile ("movl %0, %%esp; jmp interrupt_exit" : : "g" (interrupt_stack) : "memory");
+    if (thread->syscall_ret) {
+      // Exit from syscall - only for child process to return from fork() and exec().
+      thread->syscall_ret = false;
+      asm volatile (
+       "movl $0, %%eax; \
+        movl %0, %%esp; \
+        jmp syscall_exit" : : "g" (interrupt_stack) : "memory");
+    } else {
+      // User thread start - switch to user space.
+      asm volatile (
+       "movl %0, %%esp; \
+        jmp interrupt_exit" : : "g" (interrupt_stack) : "memory");
+    }
   }
 }
 
-tcb_t* init_thread(char* name, thread_func function, uint32 argc, char** argv,
+tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc, char** argv,
     uint8 user_thread, uint32 priority) {
-  // Allocate one page as tcb_t and kernel stack for each thread.
-  tcb_t* thread = (tcb_t*)kmalloc_aligned(PAGE_SIZE);
-  map_page((uint32)thread);
-  memset(thread, 0, sizeof(tcb_t));
+  if (thread == nullptr) {
+    // Allocate one page as tcb_t and kernel stack for each thread.
+    thread = (tcb_t*)kmalloc_aligned(PAGE_SIZE);
+    map_page((uint32)thread);
+    memset(thread, 0, sizeof(tcb_t));
+  }
 
   thread->id = next_thread_id++;
   if (name != nullptr) {
@@ -38,6 +51,7 @@ tcb_t* init_thread(char* name, thread_func function, uint32 argc, char** argv,
     sprintf(buf, "thread-%u", thread->id);
     strcpy(thread->name, buf);
   }
+  //monitor_printf("create thread %d\n", thread->id);
 
   thread->status = TASK_READY;
   thread->ticks = 0;
@@ -145,4 +159,31 @@ uint32 prepare_user_stack(
       (interrupt_stack_t*)((uint32)thread->self_kstack + sizeof(switch_stack_t));
   interrupt_stack->user_esp = stack_top;
   return stack_top;
+}
+
+tcb_t* fork_crt_thread() {
+  tcb_t* thread = (tcb_t*)kmalloc_aligned(PAGE_SIZE);
+  memcpy(thread, get_crt_thread(), PAGE_SIZE);
+
+  thread->id = next_thread_id++;
+  char buf[32];
+  sprintf(buf, "thread-%u", thread->id);
+  strcpy(thread->name, buf);
+
+  thread->ticks = 0;
+
+  // Init switch stack: the copied thread starts running from kernel_thread and
+  // then switch back to user mode.
+  thread->self_kstack =
+      (void*)thread + PAGE_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
+  switch_stack_t* kthread_stack = (switch_stack_t*)thread->self_kstack;
+
+  kthread_stack->eip = kernel_thread;
+  kthread_stack->tcb = thread;
+
+  // Init interrupt stack: set eax = 0 as the return value of fork() in child process.
+  interrupt_stack_t* interrupt_stack =
+      (interrupt_stack_t*)((uint32)thread->self_kstack + sizeof(switch_stack_t));
+
+  return thread;
 }

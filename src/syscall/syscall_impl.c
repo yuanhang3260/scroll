@@ -1,5 +1,6 @@
 #include "common/stdlib.h"
 #include "monitor/monitor.h"
+#include "interrupt/interrupt.h"
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "task/thread.h"
@@ -17,7 +18,7 @@ static int32 syscall_fork_impl() {
 }
 
 static int32 syscall_exec_impl(char* path, uint32 argc, char* argv[]) {
-  //monitor_printf("path = %s, argnum = %d, arg1 = %s, arg2 = %s", path, argc, argv[0], argv[1]);
+  return process_exec(path, argc, argv);
 }
 
 static int32 syscall_yield_impl() {

@@ -20,6 +20,8 @@ void bitmap_clear_bit(bitmap_t* this, uint32 bit);
 
 bool bitmap_test_bit(bitmap_t* this, uint32 bit);
 
+void bitmap_clear(bitmap_t* this);
+
 void bitmap_destroy(bitmap_t* this);
 
 // Returns sucess or not.

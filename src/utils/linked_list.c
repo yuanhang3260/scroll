@@ -90,6 +90,7 @@ void linked_list_remove_ele(linked_list_t* this, type_t ptr) {
       linked_list_remove(this, node);
       break;
     }
+    node = node->next;
   }
 }
 

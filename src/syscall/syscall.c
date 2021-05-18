@@ -16,7 +16,7 @@ int32 fork() {
 }
 
 int32 exec(char* path, uint32 argc, char* argv[]) {
-  return trigger_syscall_exec(path, argc + 1, argv);
+  return trigger_syscall_exec(path, argc, argv);
 }
 
 void yield() {
