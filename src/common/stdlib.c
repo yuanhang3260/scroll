@@ -29,6 +29,22 @@ int32 strcpy(char* dst, char* src) {
   return num;
 }
 
+int32 strcmp(char* str1, char* str2) {
+  int i = 0;
+  char c;
+  while ((c = str1[i]) != '\0') {
+    char c2 = str2[i];
+    if (c2 == '\0') {
+      return 1;
+    }
+    if (c != c2) {
+      return c < c2 ? -1 : 1;
+    }
+    i++;
+  }
+  return str2[i] == '\0' ? 0 : 1;
+}
+
 int32 int2str(char* dst, int32 num) {
   uint32 start = 0;
   if (num < 0 ) {

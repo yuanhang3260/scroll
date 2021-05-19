@@ -1,6 +1,5 @@
 #include "utils/rand.h"
 #include "interrupt/timer.h"
-#include "monitor/monitor.h"
 
 static uint32 seed = 0;
 static uint32 rand_a = 1103515245;
@@ -18,11 +17,9 @@ void rand_seed_with_time() {
 uint32 rand() {
   if (seed == 0) {
     rand_seed_with_time();
-    monitor_printf("init seed = %u\n", seed);
   }
 
   seed = (seed * rand_a + rand_c) % rand_m;
-  //monitor_printf("seed = %u\n", seed);
   return seed;
 }
 

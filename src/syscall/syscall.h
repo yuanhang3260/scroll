@@ -2,7 +2,6 @@
 #define SYSCALL_SYSCALL_H
 
 #include "common/common.h"
-#include "interrupt/interrupt.h"
 
 void exit(int32 exit_code);
 

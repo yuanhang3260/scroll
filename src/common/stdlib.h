@@ -5,7 +5,9 @@
 
 void memset(void* addr, uint8 value, int num);
 void memcpy(void* dst, void* src, int num);
+
 int32 strcpy(char* dst, char* src);
+int32 strcmp(char* str1, char* str2);
 
 int32 int2str(char* dst, int32 num);
 int32 int2hex(char* dst, int32 num);

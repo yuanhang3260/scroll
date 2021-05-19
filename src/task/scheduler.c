@@ -98,13 +98,11 @@ void init_scheduler() {
   main_thread = create_new_kernel_thread(main_process, nullptr, kernel_main_thread, nullptr);
   crt_thread = main_thread;
 
-  // Create process 1: ancestor user process
+  // Create process 1: ancestor process
   pcb_t* process = create_process(nullptr, /* is_kernel_process = */true);
   tcb_t* thread = create_new_kernel_thread(process, nullptr, ancestor_kernel_thread, nullptr);
   add_thread_to_schedule(thread);
-}
 
-void start_scheduler() {
   // Start the main thread.
   asm volatile (
    "movl %0, %%esp; \

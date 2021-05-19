@@ -1,6 +1,7 @@
 SRC_DIR=src
 OBJ_DIR=lib
 BIN_DIR=bin
+USER_DIR=user
 
 OBJS_C = \
 	$(OBJ_DIR)/main.o \
@@ -26,6 +27,10 @@ OBJS_C = \
 	$(OBJ_DIR)/syscall/syscall.o \
 	$(OBJ_DIR)/syscall/syscall_trigger.o \
 	$(OBJ_DIR)/sync/cas.o \
+	$(OBJ_DIR)/fs/disk_io.o \
+	$(OBJ_DIR)/fs/hard_disk.o \
+	$(OBJ_DIR)/fs/fs.o \
+	$(OBJ_DIR)/fs/naive_fs.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \
@@ -45,23 +50,30 @@ ASFLAGS=-felf
 
 all: image
 
-image: mbr loader kernel
-	rm -rf scroll.img && bximage -hd -mode="flat" -size=1 -q scroll.img 1>/dev/null
+prepare: ${SRC_DIR}/*
+	mkdir -p $(BIN_DIR)
+	mkdir -p $(OBJ_DIR)
+
+image: prepare mbr loader kernel disk
+	rm -rf scroll.img && bximage -hd -mode="flat" -size=3 -q scroll.img 1>/dev/null
 	dd if=$(BIN_DIR)/mbr of=scroll.img bs=512 count=1 seek=0 conv=notrunc
 	dd if=$(BIN_DIR)/loader of=scroll.img bs=512 count=8 seek=1 conv=notrunc
 	dd if=$(BIN_DIR)/kernel of=scroll.img bs=512 count=2048 seek=9 conv=notrunc
+	dd if=$(USER_DIR)/user_disk_image of=scroll.img bs=512 count=2048 seek=2057 conv=notrunc
 
 mbr: $(SRC_DIR)/boot/mbr.S
-	mkdir -p $(BIN_DIR)
 	nasm -o $(BIN_DIR)/mbr $<
 
 loader: $(SRC_DIR)/boot/loader.S
-	mkdir -p $(BIN_DIR)
 	nasm -o $(BIN_DIR)/loader $<
 
 kernel: ${OBJS_C} ${OBJS_ASM} link.ld
 	ld $(LDFLAGS) -o bin/kernel ${OBJS_C} ${OBJS_ASM}
 
+disk: user_progs
+
+user_progs: ./${USER_DIR}/src
+	cd ./${USER_DIR} && make
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
@@ -71,7 +83,6 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/%.h
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
 	$(ASM) $(ASFLAGS) $< -o $@
-
 
 $(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c
 	mkdir -p $(OBJ_DIR)/common
@@ -153,6 +164,18 @@ $(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.S
 	mkdir -p $(OBJ_DIR)/sync
 	$(ASM) $(ASFLAGS) $< -o $@
 
+$(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.c
+	mkdir -p $(OBJ_DIR)/fs
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.c $(SRC_DIR)/fs/%.h
+	mkdir -p $(OBJ_DIR)/fs
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.S
+	mkdir -p $(OBJ_DIR)/fs
+	$(ASM) $(ASFLAGS) $< -o $@
+
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c
 	mkdir -p $(OBJ_DIR)/utils
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
@@ -168,3 +191,4 @@ $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.S
 
 clean:
 	rm -rf ${OBJ_DIR}/* ${BIN_DIR}/* scroll.img bochsout.txt kernel_dump.txt
+	cd ./${USER_DIR} && make clean

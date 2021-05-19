@@ -1,0 +1,51 @@
+#include "fs/hard_disk.h"
+#include "fs/naive_fs.h"
+#include "monitor/monitor.h"
+#include "mem/kheap.h"
+#include "common/stdlib.h"
+
+fs_t naive_fs;
+uint32 file_num;
+naive_file_meta_t* file_metas;
+
+fs_t* get_naive_fs() {
+  return &naive_fs;
+}
+
+static int32 naive_fs_stat_file(char* filename, file_stat_t* stat) {
+  for (int i = 0; i < file_num; i++) {
+    naive_file_meta_t* meta = file_metas + i;
+    if (strcmp(meta->filename, filename) == 0) {
+      stat->size = meta->size;
+      return 0;
+    }
+  }
+  return -1;
+}
+
+static int32 naive_fs_read_data(char* filename, char* buffer, uint32 start, uint32 length) {
+
+}
+
+static int32 naive_fs_write_data(char* filename, char* buffer, uint32 start, uint32 length) {
+}
+
+void init_naive_fs() {
+  naive_fs.type = NAIVE;
+  naive_fs.partition.offset = 2057 * SECTOR_SIZE;
+
+  naive_fs.stat_file = naive_fs_stat_file;
+  naive_fs.read_data = naive_fs_read_data;
+  naive_fs.write_data = naive_fs_write_data;
+
+  read_hard_disk((char*)&file_num, 0 + naive_fs.partition.offset, sizeof(uint32));
+  monitor_printf("naive fs found %d files:\n", file_num);
+
+  uint32 meta_size = file_num * sizeof(naive_file_meta_t);
+  file_metas = (naive_file_meta_t*)kmalloc(meta_size);
+  read_hard_disk((char*)file_metas, 4 + naive_fs.partition.offset, meta_size);
+  for (int i = 0; i < file_num; i++) {
+    naive_file_meta_t* meta = file_metas + i;
+    monitor_printf(" - %s, offset = %d, size = %d\n", meta->filename, meta->offset, meta->size);
+  }
+}

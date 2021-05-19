@@ -10,6 +10,8 @@
 #include "task/process.h"
 #include "task/scheduler.h"
 #include "syscall/syscall.h"
+#include "fs/fs.h"
+#include "fs/hard_disk.h"
 #include "utils/debug.h"
 #include "utils/rand.h"
 #include "utils/linked_list.h"
@@ -31,9 +33,14 @@ int main() {
   //kheap_test();
   //kheap_killer();
 
-  init_scheduler();
+  init_hard_disk();
+  init_file_system();
 
-  start_scheduler();
+  file_stat_t stat;
+  ASSERT(stat_file("hello", &stat) == 0);
+  monitor_printf("found file \"hello\", size = %d\n", stat.size);
+
+  //init_scheduler();
 
   // Never should reach here.
   PANIC();

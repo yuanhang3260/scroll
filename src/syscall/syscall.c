@@ -1,5 +1,4 @@
 #include "common/common.h"
-#include "interrupt/interrupt.h"
 #include "syscall/syscall.h"
 
 extern void trigger_syscall_exit(int32 exit_code);

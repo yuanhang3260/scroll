@@ -6,9 +6,6 @@
 // Init scheduler.
 void init_scheduler();
 
-// Start running scheduler.
-void start_scheduler();
-
 // Get current running thread.
 tcb_t* get_crt_thread();
 
