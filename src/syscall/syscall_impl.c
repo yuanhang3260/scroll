@@ -4,6 +4,8 @@
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "task/thread.h"
+#include "fs/fs.h"
+#include "fs/file.h"
 #include "task/process.h"
 #include "task/scheduler.h"
 #include "syscall/syscall_impl.h"
@@ -22,7 +24,24 @@ static int32 syscall_exec_impl(char* path, uint32 argc, char* argv[]) {
 }
 
 static int32 syscall_yield_impl() {
+  return 0;
+}
 
+static int32 syscall_read_impl(char* filename, char* buffer, uint32 offset, uint32 size) {
+  return read_file(filename, buffer, offset, size);
+}
+
+static int32 syscall_write_impl(char* filename, char* buffer, uint32 offset, uint32 size) {
+  return -1;
+}
+
+static int32 syscall_stat_impl(char* filename, file_stat_t* stat) {
+  return stat_file(filename, stat);
+}
+
+static int32 syscall_print_impl(char* str, void* args_ptr) {
+  monitor_printf_args(str, args_ptr);
+  return 0;
 }
 
 int32 syscall_handler(isr_params_t isr_params) {
@@ -39,6 +58,16 @@ int32 syscall_handler(isr_params_t isr_params) {
       return syscall_exec_impl((char*)isr_params.ecx, isr_params.edx, (char**)isr_params.ebx);
     case SYSCALL_YIELD_NUM:
       return syscall_yield_impl();
+    case SYSCALL_READ_NUM:
+      return syscall_read_impl((char*)isr_params.ecx, (char*)isr_params.edx,
+          (uint32)isr_params.ebx, (uint32)isr_params.esi);
+    case SYSCALL_WRITE_NUM:
+      return syscall_write_impl((char*)isr_params.ecx, (char*)isr_params.edx,
+          (uint32)isr_params.ebx, (uint32)isr_params.esi);
+    case SYSCALL_STAT_NUM:
+      return syscall_stat_impl((char*)isr_params.ecx, (file_stat_t*)isr_params.edx);
+    case SYSCALL_PRINT_NUM:
+      return syscall_print_impl((char*)isr_params.ecx, (void*)isr_params.edx);
     default:
       PANIC();
   }

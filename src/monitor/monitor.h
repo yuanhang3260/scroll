@@ -31,6 +31,8 @@ void monitor_println(char* str);
 
 void monitor_printf(char* str, ...);
 
+void monitor_printf_args(char* str, void* args);
+
 void monitor_print_with_color(char* str, uint8 color);
 
 #endif

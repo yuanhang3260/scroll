@@ -1,5 +1,6 @@
 #include "fs/hard_disk.h"
 #include "mem/kheap.h"
+#include "monitor/monitor.h"
 #include "common/stdlib.h"
 #include "utils/math.h"
 #include "interrupt/interrupt.h"
@@ -9,6 +10,7 @@ static void disk_interrupt_handler() {}
 void init_hard_disk() {
   // Ignore disk interrupt.
   register_interrupt_handler(IRQ14_INT_NUM, &disk_interrupt_handler);
+  register_interrupt_handler(IRQ15_INT_NUM, &disk_interrupt_handler);
 }
 
 extern void read_disk(char* buffer, uint32 start_sector, uint32 sector_num);

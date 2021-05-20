@@ -1,3 +1,4 @@
+#include "common/stdio.h"
 #include "monitor/monitor.h"
 #include "task/thread.h"
 #include "task/process.h"
@@ -44,17 +45,6 @@ static void kernel_main_thread(char* argv[]) {
   }
 }
 
-static void first_user_program(uint32 argc, char* argv[]) {
-  monitor_println("****************************");
-  monitor_println("start first user app");
-  monitor_printf("argc = %d\n", argc);
-  for (uint32 i = 0; i < argc; i++) {
-    monitor_printf("argv[%d] = %s\n", i, argv[i]);
-  }
-
-  while(1) {}
-}
-
 static void ancestor_user_thread() {
   monitor_println("start ancestor user thread ...");
 
@@ -66,12 +56,11 @@ static void ancestor_user_thread() {
     monitor_printf("created child process %d\n", pid);
   } else {
     // child
-    monitor_printf("child process return\n");
+    printf("child process return %s\n", "ok");
 
-    char* argv[2];
-    argv[0] = "hello";
-    argv[1] = "hy";
-    exec((char*)first_user_program, 2, argv);
+    char* argv[1];
+    argv[0] = "greeting.txt";
+    exec("cat", 1, argv);
   }
 }
 

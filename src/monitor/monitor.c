@@ -193,7 +193,10 @@ void monitor_println(char* str) {
 void monitor_printf(char* str, ...) {
   void* ebp = get_ebp();
   void* arg_ptr = ebp + 12;
+  monitor_printf_args(str, arg_ptr);
+}
 
+void monitor_printf_args(char* str, void* arg_ptr) {
   int i = 0;
   while (1) {
     char c = str[i];

@@ -2,6 +2,7 @@
 #define FS_FS_H
 
 #include "common/common.h"
+#include "fs/file.h"
 
 enum fs_type {
   NAIVE,
@@ -12,12 +13,6 @@ struct disk_partition {
   uint32 offset;
 };
 typedef struct disk_partition disk_partition_t;
-
-struct file_stat {
-  uint32 size;
-  uint8 acl;
-};
-typedef struct file_stat file_stat_t;
 
 typedef int32 (*stat_file_func)(char* filename, file_stat_t* stat);
 typedef int32 (*read_data_func)(char* filename, char* buffer, uint32 start, uint32 length);

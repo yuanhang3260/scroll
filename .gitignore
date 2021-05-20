@@ -7,3 +7,7 @@ mbr
 loader
 lib/
 bin/
+user/progs
+user/lib
+user/user_disk_image
+user/disk_image_writer

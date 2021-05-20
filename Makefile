@@ -8,6 +8,7 @@ OBJS_C = \
 	$(OBJ_DIR)/common/common.o \
 	$(OBJ_DIR)/common/io.o \
 	$(OBJ_DIR)/common/stdlib.o \
+	$(OBJ_DIR)/common/stdio.o \
 	$(OBJ_DIR)/common/global.o \
 	$(OBJ_DIR)/common/util.o \
 	$(OBJ_DIR)/monitor/monitor.o \
@@ -30,7 +31,9 @@ OBJS_C = \
 	$(OBJ_DIR)/fs/disk_io.o \
 	$(OBJ_DIR)/fs/hard_disk.o \
 	$(OBJ_DIR)/fs/fs.o \
+	$(OBJ_DIR)/fs/file.o \
 	$(OBJ_DIR)/fs/naive_fs.o \
+	$(OBJ_DIR)/elf/elf.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \
@@ -174,6 +177,18 @@ $(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.c $(SRC_DIR)/fs/%.h
 
 $(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.S
 	mkdir -p $(OBJ_DIR)/fs
+	$(ASM) $(ASFLAGS) $< -o $@
+
+$(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.c
+	mkdir -p $(OBJ_DIR)/elf
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.c $(SRC_DIR)/elf/%.h
+	mkdir -p $(OBJ_DIR)/elf
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.S
+	mkdir -p $(OBJ_DIR)/elf
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c

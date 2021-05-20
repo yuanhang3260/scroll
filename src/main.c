@@ -9,12 +9,9 @@
 #include "task/thread.h"
 #include "task/process.h"
 #include "task/scheduler.h"
-#include "syscall/syscall.h"
-#include "fs/fs.h"
 #include "fs/hard_disk.h"
+#include "fs/fs.h"
 #include "utils/debug.h"
-#include "utils/rand.h"
-#include "utils/linked_list.h"
 
 char* welcome = "# welcome to scroll kernel #";
 
@@ -30,17 +27,12 @@ int main() {
 
   init_paging();
   init_kheap();
-  //kheap_test();
   //kheap_killer();
 
   init_hard_disk();
   init_file_system();
 
-  file_stat_t stat;
-  ASSERT(stat_file("hello", &stat) == 0);
-  monitor_printf("found file \"hello\", size = %d\n", stat.size);
-
-  //init_scheduler();
+  init_scheduler();
 
   // Never should reach here.
   PANIC();

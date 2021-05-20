@@ -24,7 +24,26 @@ static int32 naive_fs_stat_file(char* filename, file_stat_t* stat) {
 }
 
 static int32 naive_fs_read_data(char* filename, char* buffer, uint32 start, uint32 length) {
+  naive_file_meta_t* file_meta = nullptr;
+  for (int i = 0; i < file_num; i++) {
+    naive_file_meta_t* meta = file_metas + i;
+    if (strcmp(meta->filename, filename) == 0) {
+      file_meta = meta;
+      break;
+    }
+  }
+  if (file_meta == nullptr) {
+    return -1;
+  }
 
+  uint32 offset = file_meta->offset;
+  uint32 size = file_meta->size;
+  if (length > size) {
+    length = size;
+  }
+
+  read_hard_disk((char*)buffer, naive_fs.partition.offset + offset + start, length);
+  return length;  
 }
 
 static int32 naive_fs_write_data(char* filename, char* buffer, uint32 start, uint32 length) {

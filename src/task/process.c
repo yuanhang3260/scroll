@@ -5,6 +5,9 @@
 #include "monitor/monitor.h"
 #include "mem/kheap.h"
 #include "mem/paging.h"
+#include "fs/file.h"
+#include "fs/fs.h"
+#include "elf/elf.h"
 #include "utils/string.h"
 
 static uint32 next_pid = 0;
@@ -85,8 +88,20 @@ int32 process_fork() {
 }
 
 int32 process_exec(char* path, uint32 argc, char* argv[]) {
-  // TODO: read elf bin from path and load it.
-  void* exec_entry = (void*)path;
+  // Read elf binary file.
+  file_stat_t stat;
+  if (stat_file(path, &stat) != 0) {
+    monitor_printf("faile to get file %s\n", path);
+    return -1;
+  }
+
+  uint32 size = stat.size;
+  char* read_buffer = (char*)kmalloc(size);
+  if (read_file(path, read_buffer, 0, size) != size) {
+    monitor_printf("faile to read file %s\n", path);
+    kfree(read_buffer);
+    return -1;
+  }
 
   // Destroy all threads of this process (except current thread).
   tcb_t* thread = get_crt_thread();
@@ -104,6 +119,8 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
     kfree(head->ptr);
   }
 
+  // TODO: remove destroyed threads from schedule task queues.
+
   linked_list_append(threads, keep);
 
   // Release all user stacks.
@@ -116,8 +133,17 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   // User virtual space is 4MB - 3G, totally 1024 * 3/4 - 1 = 767 page dir entries.
   release_pages(4 * 1024 * 1024, 767 * 1024);
 
+  // Load elf binary.
+  uint32 exec_entry;
+  if (load_elf(read_buffer, &exec_entry)) {
+    monitor_printf("faile to load elf file %s\n", path);
+    return -1;
+  }
+  //monitor_printf("entry = %x\n", exec_entry);
+  kfree(read_buffer);
+
   // Create a new thread to exec new program.
-  tcb_t* new_thread = create_new_user_thread(process, nullptr, exec_entry, argc, args);
+  tcb_t* new_thread = create_new_user_thread(process, path, (void*)exec_entry, argc, args);
   add_thread_to_schedule(new_thread);
   destroy_str_array(argc, args);
 

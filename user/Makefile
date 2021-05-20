@@ -12,14 +12,19 @@ LDFLAGS=-m elf_i386 -Tlink.ld
 
 SYS_OBJS = \
 	$(SYS_LIB_DIR)/common/common.o \
+	$(SYS_LIB_DIR)/common/stdio.o \
+	$(SYS_LIB_DIR)/common/util.o \
 	$(SYS_LIB_DIR)/syscall/syscall.o \
 	$(SYS_LIB_DIR)/syscall/syscall_trigger.o \
 	$(SYS_LIB_DIR)/utils/math.o \
+	$(SYS_LIB_DIR)/fs/file.o \
 
 PROGS = \
   ${BIN_DIR}/hello \
   ${BIN_DIR}/shell \
   ${BIN_DIR}/fork_bomb \
+  ${BIN_DIR}/cat \
+  ${BIN_DIR}/ls \
 
 all: prepare image
 
@@ -40,3 +45,4 @@ $(LIB_DIR)/%.o: $(SRC_DIR)/%.c
 
 clean:
 	rm -rf ${BIN_DIR}/* ${LIB_DIR}/* user_disk_image
+	cp greeting.txt ${BIN_DIR}/greeting.txt
