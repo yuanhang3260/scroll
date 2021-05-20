@@ -3,6 +3,7 @@
 #include "monitor/monitor.h"
 #include "mem/kheap.h"
 #include "common/stdlib.h"
+#include "utils/math.h"
 
 fs_t naive_fs;
 uint32 file_num;
@@ -19,6 +20,31 @@ static int32 naive_fs_stat_file(char* filename, file_stat_t* stat) {
       stat->size = meta->size;
       return 0;
     }
+  }
+  return -1;
+}
+
+static int32 naive_fs_list_dir(char* dir) {
+  uint32 size_length[file_num];
+  uint32 max_length = 0;
+  for (uint32 i = 0; i < file_num; i++) {
+    naive_file_meta_t* meta = file_metas + i;
+    uint32 size = meta->size;
+    uint32 length = 1;
+    while ((size /= 10) > 0) {
+      length++;
+    }
+    size_length[i] = length;
+    max_length = max(max_length, length);
+  }
+
+  for (uint32 i = 0; i < file_num; i++) {
+    naive_file_meta_t* meta = file_metas + i;
+    monitor_printf("scroll  ");
+    for (uint32 j = 0; j < max_length - size_length[i]; j++) {
+      monitor_printf(" ");
+    }
+    monitor_printf("%d  %s\n", meta->size, meta->filename);
   }
   return -1;
 }
@@ -56,6 +82,7 @@ void init_naive_fs() {
   naive_fs.stat_file = naive_fs_stat_file;
   naive_fs.read_data = naive_fs_read_data;
   naive_fs.write_data = naive_fs_write_data;
+  naive_fs.list_dir = naive_fs_list_dir;
 
   read_hard_disk((char*)&file_num, 0 + naive_fs.partition.offset, sizeof(uint32));
   monitor_printf("naive fs found %d files:\n", file_num);

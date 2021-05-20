@@ -58,9 +58,11 @@ static void ancestor_user_thread() {
     // child
     printf("child process return %s\n", "ok");
 
+    char* prog = "ls";
+    printf(">> %s\n", prog);
     char* argv[1];
     argv[0] = "greeting.txt";
-    exec("cat", 1, argv);
+    exec(prog, 1, argv);
   }
 }
 

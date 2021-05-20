@@ -18,6 +18,8 @@ int32 write(char* filename, char* buffer, uint32 offset, uint32 size);
 
 int32 stat(char* filename, file_stat_t* stat);
 
+int32 listdir(char* dir);
+
 void print(char* str, void* args);
 
 #endif

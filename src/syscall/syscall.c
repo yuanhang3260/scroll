@@ -8,6 +8,7 @@ extern void trigger_syscall_yield();
 extern int32 trigger_syscall_read(char* filename, char* buffer, uint32 offset, uint32 size);
 extern int32 trigger_syscall_write(char* filename, char* buffer, uint32 offset, uint32 size);
 extern int32 trigger_syscall_stat(char* filename, file_stat_t* stat);
+extern int32 trigger_syscall_listdir(char* dir);
 extern void trigger_syscall_print(char* str, void* args);
 
 void exit(int32 exit_code) {
@@ -36,6 +37,10 @@ int32 write(char* filename, char* buffer, uint32 offset, uint32 size) {
 
 int32 stat(char* filename, file_stat_t* stat) {
   return trigger_syscall_stat(filename, stat);
+}
+
+int32 listdir(char* dir) {
+  return trigger_syscall_listdir(dir);
 }
 
 void print(char* str, void* args) {

@@ -39,6 +39,10 @@ static int32 syscall_stat_impl(char* filename, file_stat_t* stat) {
   return stat_file(filename, stat);
 }
 
+static int32 syscall_listdir_impl(char* dir) {
+  return list_dir(dir);
+}
+
 static int32 syscall_print_impl(char* str, void* args_ptr) {
   monitor_printf_args(str, args_ptr);
   return 0;
@@ -66,6 +70,8 @@ int32 syscall_handler(isr_params_t isr_params) {
           (uint32)isr_params.ebx, (uint32)isr_params.esi);
     case SYSCALL_STAT_NUM:
       return syscall_stat_impl((char*)isr_params.ecx, (file_stat_t*)isr_params.edx);
+    case SYSCALL_LISTDIR_NUM:
+      return syscall_listdir_impl((char*)isr_params.ecx);
     case SYSCALL_PRINT_NUM:
       return syscall_print_impl((char*)isr_params.ecx, (void*)isr_params.edx);
     default:

@@ -16,6 +16,11 @@ int32 stat_file(char* filename, file_stat_t* stat) {
   return fs->stat_file(filename, stat);
 }
 
+int32 list_dir(char* dir) {
+  fs_t* fs = get_fs(dir);
+  return fs->list_dir(dir);
+}
+
 int32 read_file(char* filename, char* buffer, uint32 start, uint32 length) {
   fs_t* fs = get_fs(filename);
   return fs->read_data(filename, buffer, start, length);
