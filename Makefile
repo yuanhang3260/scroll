@@ -28,6 +28,8 @@ OBJS_C = \
 	$(OBJ_DIR)/syscall/syscall.o \
 	$(OBJ_DIR)/syscall/syscall_trigger.o \
 	$(OBJ_DIR)/sync/cas.o \
+	$(OBJ_DIR)/sync/spinlock.o \
+	$(OBJ_DIR)/sync/mutex.o \
 	$(OBJ_DIR)/fs/disk_io.o \
 	$(OBJ_DIR)/fs/hard_disk.o \
 	$(OBJ_DIR)/fs/fs.o \

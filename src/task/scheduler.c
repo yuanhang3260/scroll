@@ -204,7 +204,7 @@ void schedule_thread_exit(int32 exit_code) {
   // If any of these conditions matches, wake up the main thread to clean died tasks.
   //  - If died tasks queue length is over threshold;
   //  - If there is no other ready tasks to execute;
-  if (!main_thread_in_ready_queue && (died_tasks.size >= 2 || ready_tasks.size == 0)) {
+  if (!main_thread_in_ready_queue && (died_tasks.size >= 1 || ready_tasks.size == 0)) {
     linked_list_node_t* node = (linked_list_node_t*)kmalloc(sizeof(linked_list_node_t));
     //monitor_println("wake up main thread clean");
     node->ptr = (void*)main_thread;

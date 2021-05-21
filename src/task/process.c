@@ -10,7 +10,7 @@
 #include "elf/elf.h"
 #include "utils/string.h"
 
-static uint32 next_pid = 0;
+static uint32 next_pid = 1;
 
 // TODO: remove it
 extern page_directory_t* current_page_directory;

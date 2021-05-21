@@ -40,7 +40,7 @@ static int32 naive_fs_list_dir(char* dir) {
 
   for (uint32 i = 0; i < file_num; i++) {
     naive_file_meta_t* meta = file_metas + i;
-    monitor_printf("scroll  ");
+    monitor_printf("root  ");
     for (uint32 j = 0; j < max_length - size_length[i]; j++) {
       monitor_printf(" ");
     }

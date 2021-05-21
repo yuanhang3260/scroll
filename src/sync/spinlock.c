@@ -2,7 +2,11 @@
 #include "task/thread.h"
 #include "task/scheduler.h"
 
-extern atomic_exchange(uint32* dst, uint32 src);
+extern uint32 atomic_exchange(volatile uint32* dst, uint32 src);
+
+void spinlock_init(spinlock_t* splock) {
+  splock->hold = LOCKED_NO;
+}
 
 void spinlock_lock(spinlock_t *spinlock) {
   while (atomic_exchange(&spinlock->hold , LOCKED_YES) != LOCKED_NO) {

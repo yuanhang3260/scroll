@@ -9,12 +9,12 @@
 #define SINGLE_PROCESSOR
 
 typedef struct spinlock {
-  uint32 hold;
-  uint32 thread;
+  volatile uint32 hold;
 } spinlock_t;
 
 // ****************************************************************************
-void spinlock_lock(spinlock_t *mp);
-void spinlock_unlock(spinlock_t *mp);
+void spinlock_init(spinlock_t* splock);
+void spinlock_lock(spinlock_t* splock);
+void spinlock_unlock(spinlock_t* splock);
 
 #endif

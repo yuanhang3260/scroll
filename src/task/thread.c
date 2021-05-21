@@ -9,7 +9,7 @@
 
 extern uint32 get_esp();
 
-static uint32 next_thread_id = 0;
+static uint32 next_thread_id = 1;
 
 static void kernel_thread(thread_func* function, char** func_arg, tcb_t* thread) {
   if (thread->process->is_kernel_process) {
