@@ -4,16 +4,21 @@
 #include "common/common.h"
 #include "interrupt/interrupt.h"
 #include "task/process.h"
+#include "utils/linked_list.h"
 
 #define KERNEL_MAIN_STACK_TOP    0xF0000000
 #define THREAD_STACK_MAGIC       0x32602021
 #define THREAD_DEFAULT_PRIORITY  10
+
+#define KERNEL_STACK_SIZE  8192
 
 #define EFLAGS_MBS    (1 << 1)
 #define EFLAGS_IF_0   (0 << 9)
 #define EFLAGS_IF_1   (1 << 9)
 #define EFLAGS_IOPL_0 (0 << 12)
 #define EFLAGS_IOPL_3 (3 << 12)
+
+typedef linked_list_node_t thread_node_t;
 
 typedef isr_params_t interrupt_stack_t;
 

@@ -8,6 +8,7 @@ void init_scheduler();
 
 // Get current running thread.
 tcb_t* get_crt_thread();
+thread_node_t* get_crt_thread_node();
 
 void add_thread_to_schedule(tcb_t* thread);
 

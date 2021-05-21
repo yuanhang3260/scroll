@@ -38,8 +38,7 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
     uint8 user_thread, uint32 priority) {
   if (thread == nullptr) {
     // Allocate one page as tcb_t and kernel stack for each thread.
-    thread = (tcb_t*)kmalloc_aligned(PAGE_SIZE);
-    map_page((uint32)thread);
+    thread = (tcb_t*)kmalloc_aligned(KERNEL_STACK_SIZE);
     memset(thread, 0, sizeof(tcb_t));
   }
 
@@ -61,7 +60,7 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
 
   // Init thread stack.
   thread->self_kstack =
-      (void*)thread + PAGE_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
+      (void*)thread + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
   switch_stack_t* kthread_stack = (switch_stack_t*)thread->self_kstack;
 
   kthread_stack->edi = 0;
@@ -162,8 +161,8 @@ uint32 prepare_user_stack(
 }
 
 tcb_t* fork_crt_thread() {
-  tcb_t* thread = (tcb_t*)kmalloc_aligned(PAGE_SIZE);
-  memcpy(thread, get_crt_thread(), PAGE_SIZE);
+  tcb_t* thread = (tcb_t*)kmalloc_aligned(KERNEL_STACK_SIZE);
+  memcpy(thread, get_crt_thread(), KERNEL_STACK_SIZE);
 
   thread->id = next_thread_id++;
   char buf[32];
@@ -175,7 +174,7 @@ tcb_t* fork_crt_thread() {
   // Init switch stack: the copied thread starts running from kernel_thread and
   // then switch back to user mode.
   thread->self_kstack =
-      (void*)thread + PAGE_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
+      (void*)thread + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
   switch_stack_t* kthread_stack = (switch_stack_t*)thread->self_kstack;
 
   kthread_stack->eip = kernel_thread;
