@@ -5,10 +5,14 @@
 
 linked_list_t create_linked_list() {
   linked_list_t linked_list;
-  linked_list.head = nullptr;
-  linked_list.tail = nullptr;
-  linked_list.size = nullptr;
+  linked_list_init(&linked_list);
   return linked_list;
+}
+
+void linked_list_init(linked_list_t* this) {
+  this->head = nullptr;
+  this->tail = nullptr;
+  this->size = 0;
 }
 
 void linked_list_append(linked_list_t* this, linked_list_node_t* new_node) {

@@ -19,7 +19,6 @@ static thread_node_t* main_thread_node;
 static thread_node_t* crt_thread_node;
 
 static linked_list_t ready_tasks;
-static linked_list_t blocking_tasks;
 static linked_list_t died_tasks;
 
 static bool main_thread_in_ready_queue = 0;
@@ -85,8 +84,8 @@ static void ancestor_kernel_thread(char* argv[]) {
 
 void init_scheduler() {
   // Init task queues.
-  ready_tasks = create_linked_list();
-  blocking_tasks = create_linked_list();
+  linked_list_init(&ready_tasks);
+  linked_list_init(&died_tasks);
 
   // Create process 0: kernel main
   main_process = create_process("kernel_main_process", /* is_kernel_process = */true);

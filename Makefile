@@ -31,17 +31,18 @@ OBJS_C = \
 	$(OBJ_DIR)/sync/spinlock.o \
 	$(OBJ_DIR)/sync/mutex.o \
 	$(OBJ_DIR)/fs/disk_io.o \
-	$(OBJ_DIR)/fs/hard_disk.o \
 	$(OBJ_DIR)/fs/fs.o \
 	$(OBJ_DIR)/fs/file.o \
 	$(OBJ_DIR)/fs/naive_fs.o \
 	$(OBJ_DIR)/elf/elf.o \
+	$(OBJ_DIR)/driver/hard_disk.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \
 	$(OBJ_DIR)/utils/math.o \
 	$(OBJ_DIR)/utils/rand.o \
 	$(OBJ_DIR)/utils/linked_list.o \
+	$(OBJ_DIR)/utils/hash_table.o \
 	$(OBJ_DIR)/utils/string.o \
 
 OBJS_ASM = \
@@ -191,6 +192,18 @@ $(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.c $(SRC_DIR)/elf/%.h
 
 $(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.S
 	mkdir -p $(OBJ_DIR)/elf
+	$(ASM) $(ASFLAGS) $< -o $@
+
+$(OBJ_DIR)/driver/%.o: $(SRC_DIR)/driver/%.c
+	mkdir -p $(OBJ_DIR)/driver
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/driver/%.o: $(SRC_DIR)/driver/%.c $(SRC_DIR)/driver/%.h
+	mkdir -p $(OBJ_DIR)/driver
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/driver/%.o: $(SRC_DIR)/driver/%.S
+	mkdir -p $(OBJ_DIR)/driver
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c

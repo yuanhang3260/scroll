@@ -22,6 +22,8 @@ typedef struct linked_list linked_list_t;
 // ****************************************************************************
 linked_list_t create_linked_list();
 
+void linked_list_init(linked_list_t* this);
+
 void linked_list_append(linked_list_t* this, linked_list_node_t* new_node);
 
 // insert after node.

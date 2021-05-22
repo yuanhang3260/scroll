@@ -1,8 +1,7 @@
-#ifndef FS_HARD_DISK_H
-#define FS_HARD_DISK_H
+#ifndef DRIVER_HARD_DISK_H
+#define DRIVER_HARD_DISK_H
 
 #include "common/common.h"
-#include "fs/fs.h"
 
 #define SECTOR_SIZE  512
 
