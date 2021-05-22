@@ -48,6 +48,11 @@ static int32 syscall_print_impl(char* str, void* args_ptr) {
   return 0;
 }
 
+static int32 syscall_wait_impl(uint32 pid, uint32* status) {
+  process_wait(pid, status);
+  return 0;
+}
+
 int32 syscall_handler(isr_params_t isr_params) {
   // syscall num saved in eax.
   // args list: ecx, edx, ebx, esi, edi
@@ -74,6 +79,8 @@ int32 syscall_handler(isr_params_t isr_params) {
       return syscall_listdir_impl((char*)isr_params.ecx);
     case SYSCALL_PRINT_NUM:
       return syscall_print_impl((char*)isr_params.ecx, (void*)isr_params.edx);
+    case SYSCALL_WAIT_NUM:
+      return syscall_wait_impl((uint32)isr_params.ecx, (uint32*)isr_params.edx);
     default:
       PANIC();
   }

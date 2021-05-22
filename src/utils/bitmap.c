@@ -1,3 +1,4 @@
+#include "monitor/monitor.h"
 #include "common/common.h"
 #include "utils/bitmap.h"
 #include "mem/kheap.h"
@@ -11,9 +12,10 @@ bitmap_t bitmap_create(uint32* array, int total_bits) {
   ret.array_size = total_bits / 32;
   if (array == nullptr) {
     array = (uint32*)kmalloc(ret.array_size * 4);
-    ret.alloc_array = 1;
+    //monitor_printf("alloc bitmap array %x\n", array);
+    ret.alloc_array = true;
   } else {
-    ret.alloc_array = 0;
+    ret.alloc_array = false;
   }
   ret.array = array;
   return ret;
@@ -72,7 +74,7 @@ void bitmap_clear(bitmap_t* this) {
 
 void bitmap_destroy(bitmap_t* this) {
   if (this->alloc_array) {
+    //monitor_printf("destroyed user_thread_stack_indexes %x\n", this->array);
     kfree(this->array);
   }
-  kfree(this);
 }

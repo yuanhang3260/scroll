@@ -11,15 +11,24 @@
 #include "sync/spinlock.h"
 #include "sync/mutex.h"
 #include "utils/linked_list.h"
-#include "utils/debug.h"
 #include "utils/hash_table.h"
+#include "utils/debug.h"
 
 extern void cpu_idle();
+extern int32 get_eax();
 extern void context_switch(tcb_t* crt, tcb_t* next);
 
 static pcb_t* main_process;
 static thread_node_t* main_thread_node;
 static thread_node_t* crt_thread_node;
+
+// processes map
+hash_table_t processes_map;
+spinlock_t processes_map_lock;
+
+// threads map
+hash_table_t threads_map;
+spinlock_t threads_map_lock;
 
 // ready task queue
 static linked_list_t ready_tasks;
@@ -35,6 +44,10 @@ tcb_t* get_crt_thread() {
 
 thread_node_t* get_crt_thread_node() {
   return crt_thread_node;
+}
+
+pcb_t* get_process(uint32 pid) {
+  return hash_table_get(&processes_map, pid);
 }
 
 static void destroy_thread(thread_node_t* thread_node);
@@ -68,16 +81,21 @@ static void ancestor_user_thread() {
   if (pid < 0) {
     monitor_println("fork failed");
   } else if (pid > 0) {
-    // parent
+    // parent: thread-2
     monitor_printf("created child process %d\n", pid);
+    uint32 status;
+    wait(pid, &status);
+    monitor_printf("child process exit with code %d\n", status);
   } else {
-    // child
-    printf("child process return %s\n", "ok");
+    // child: thread-3
+    printf("child process start ok\n");
 
     char* prog = "ls";
     printf(">> %s\n", prog);
     char* argv[1];
     argv[0] = "greeting.txt";
+
+    // thread-4
     exec(prog, 1, argv);
   }
 }
@@ -85,6 +103,7 @@ static void ancestor_user_thread() {
 static void ancestor_kernel_thread(char* argv[]) {
   monitor_println("start ancestor kernel thread ...");
 
+  // thread-2
   pcb_t* crt_process = get_crt_thread()->process;
   tcb_t* thread = create_new_user_thread(crt_process, nullptr, ancestor_user_thread, 0, nullptr);
 
@@ -100,16 +119,21 @@ void init_scheduler() {
   linked_list_init(&ready_tasks);
   linked_list_init(&died_tasks);
 
+  hash_table_init(&processes_map);
+  hash_table_init(&threads_map);
+
   // Create process 0: kernel main
   main_process = create_process("kernel_main_process", /* is_kernel_process = */true);
   tcb_t* main_thread = create_new_kernel_thread(main_process, nullptr, kernel_main_thread, nullptr);
   main_thread_node = (thread_node_t*)kmalloc(sizeof(thread_node_t));
   main_thread_node->ptr = main_thread;
   crt_thread_node = main_thread_node;
+  hash_table_put(&processes_map, main_process->id, main_process);
 
   // Create process 1: ancestor process
   pcb_t* process = create_process(nullptr, /* is_kernel_process = */true);
   tcb_t* thread = create_new_kernel_thread(process, nullptr, ancestor_kernel_thread, nullptr);
+  hash_table_put(&processes_map, process->id, process);
   add_thread_to_schedule(thread);
 
   // Start the main thread.
@@ -216,6 +240,7 @@ void schedule_thread_yield() {
 void schedule_thread_exit(int32 exit_code) {
   // Set this thread status as TASK_DIED.
   tcb_t* thread = get_crt_thread();
+  thread->exit_code = exit_code;
 
   disable_interrupt();
   thread->status = TASK_DIED;
@@ -223,7 +248,8 @@ void schedule_thread_exit(int32 exit_code) {
 }
 
 void schedule_thread_exit_normal() {
-  exit(0);
+  uint32 eax = get_eax();
+  exit(eax);
 }
 
 static void destroy_thread(thread_node_t* thread_node) {
@@ -233,7 +259,27 @@ static void destroy_thread(thread_node_t* thread_node) {
   // Remove this thread from its process and release resources.
   pcb_t* process = thread->process;
   remove_process_thread(process, thread);
+  if (process->threads.size == 0) {
+    // Last thread exit, this process should exit.
+    //monitor_printf("process %d has no threads, destroying\n", process->id);
+
+    // Remove this process from prcoesses map.
+    spinlock_lock(&processes_map_lock);
+    ASSERT(hash_table_remove(&processes_map, process->id) == process);
+    spinlock_unlock(&processes_map_lock);
+
+    // Process exit and destroy.
+    //monitor_printf("prcess %d exit with %d\n", process->id, thread->exit_code);
+    process_exit(process, thread->exit_code);
+    destroy_process(process);
+  }
 
   kfree(thread);
   kfree(thread_node);
+}
+
+void add_process_to_schedule(pcb_t* process) {
+  spinlock_lock(&processes_map_lock);
+  hash_table_put(&processes_map, process->id, process);
+  spinlock_unlock(&processes_map_lock);
 }

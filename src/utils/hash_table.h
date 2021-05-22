@@ -36,6 +36,8 @@ void* hash_table_remove(hash_table_t* this, uint32 key);
 
 void hash_table_destroy(hash_table_t* this);
 
+void hash_table_print(hash_table_t* this);
+
 
 // ****************************** unit test ***********************************
 void hash_table_test();

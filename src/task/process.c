@@ -37,6 +37,10 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
 
   hash_table_init(&process->threads);
 
+  linked_list_init(&process->waiting_thread_nodes);
+
+  hash_table_init(&process->wait_exit_codes);
+
   process->page_dir = clone_crt_page_dir();
 
   spinlock_init(&process->lock);
@@ -93,9 +97,50 @@ void remove_process_thread(pcb_t* process, tcb_t* thread) {
   spinlock_unlock(&process->lock);
 }
 
+// Process eixts:
+//  - wake up threads waiting on this process and set wait result code for them;
+void process_exit(pcb_t* process, int32 exit_code) {
+  // First, wake up all threads waiting on this process.
+  linked_list_t waiting_thread_nodes;
+  linked_list_move(&waiting_thread_nodes, &process->waiting_thread_nodes);
+  thread_node_t* node = waiting_thread_nodes.head;
+  while (node != nullptr) {
+    thread_node_t* crt_node = node;
+    node = node->next;
+    linked_list_remove(&waiting_thread_nodes, crt_node);
+
+    // Set wait result code
+    tcb_t* wait_thread = (tcb_t*)crt_node->ptr;
+    pcb_t* wait_process = wait_thread->process;
+
+    uint32* exit_code_copy = (uint32*)kmalloc(sizeof(uint32));
+    *exit_code_copy = exit_code;
+    spinlock_lock(&wait_process->lock);
+    hash_table_put(&wait_process->wait_exit_codes, process->id, exit_code_copy);
+    spinlock_unlock(&wait_process->lock);
+
+    // Wake up waiting thread.
+    add_thread_node_to_schedule(crt_node);
+  }
+}
+
+// Destroy a process and release all its resources:
+//  - user_thread_stack_indexes bitmap;
+//  - wait_exit_codes;
+//  - all pages (including page dir and page tables);
+void destroy_process(pcb_t* process) {
+  bitmap_destroy(&process->user_thread_stack_indexes);
+  // TODO: release all page frames;
+
+  hash_table_destroy(&process->wait_exit_codes);
+
+  kfree(process);
+}
+
 int32 process_fork() {
   // Create a new process, with page directory cloned from this process.
   pcb_t* process = create_process(nullptr, /* is_kernel_process = */false);
+  add_process_to_schedule(process);
 
   // Copy current thread and prepare for its kernel and user stacks.
   tcb_t* thread = fork_crt_thread();
@@ -142,6 +187,7 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   // TODO: remove destroyed threads from schedule task queues.
 
   spinlock_lock(&process->lock);
+  hash_table_init(threads);
   hash_table_put(threads, keep_thread->id, crt_thread);
   // Release all user stacks.
   bitmap_clear(&process->user_thread_stack_indexes);
@@ -168,6 +214,36 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   add_thread_to_schedule(new_thread);
   destroy_str_array(argc, args);
 
+  //hash_table_print(&process->threads);
+
   // Exit current thread. This thread will never return to user mode.
   schedule_thread_exit(0);
+}
+
+void process_wait(uint32 pid, uint32* status) {
+  pcb_t* target_process = get_process(pid);
+
+  thread_node_t* thread_node = get_crt_thread_node();
+  tcb_t* thread = (tcb_t*)thread_node->ptr;
+  pcb_t* process = thread->process;
+
+  spinlock_lock(&process->lock);
+  hash_table_t* wait_exit_codes = &process->wait_exit_codes;
+  uint32* exit_code = (uint32*)hash_table_get(wait_exit_codes, pid);
+  if (exit_code != nullptr) {
+    *status = *exit_code;
+    spinlock_unlock(&process->lock);
+    return;
+  } else {
+    thread->status = TASK_WAITING;
+    linked_list_append(&target_process->waiting_thread_nodes, thread_node);
+    spinlock_unlock(&process->lock);
+    schedule_thread_yield();
+
+    // waken up
+    hash_table_t* wait_exit_codes = &process->wait_exit_codes;
+    uint32* exit_code = (uint32*)hash_table_get(wait_exit_codes, pid);
+    *status = *exit_code;
+  }
+  spinlock_unlock(&process->lock);
 }

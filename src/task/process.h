@@ -16,14 +16,25 @@
 struct process_struct {
   uint32 id;
   char name[32];
+
   // tid -> threads;
   hash_table_t threads;
+
   // allocate user space thread for threads.
   bitmap_t user_thread_stack_indexes;
+
   // page directory.
   page_directory_t page_dir;
+
   // is kernel process?
   uint8 is_kernel_process;
+
+  // waiting threads
+  linked_list_t waiting_thread_nodes;
+
+  // exit code map of processes that this process waits.
+  hash_table_t wait_exit_codes;
+
   // lock to protect this struct
   spinlock_t lock;
 };
@@ -41,7 +52,11 @@ struct task_struct* create_new_user_thread(
 void add_process_thread(pcb_t* process, struct task_struct* thread);
 void remove_process_thread(pcb_t* process, struct task_struct* thread);
 
+void process_exit(pcb_t* process, int32 exit_code);
+void destroy_process(pcb_t* process);
+
 int32 process_fork();
 int32 process_exec(char* path, uint32 argc, char* argv[]);
+void process_wait(uint32 pid, uint32* status);
 
 #endif

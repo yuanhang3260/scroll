@@ -12,3 +12,7 @@ get_ebp:
 get_esp:
   mov eax, esp
   ret
+
+[GLOBAL get_eax]
+get_eax:
+  ret

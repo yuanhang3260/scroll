@@ -5,4 +5,5 @@
 
 int main(uint32 argc, char* argv[]) {
   listdir(".");
+  return 1;
 }

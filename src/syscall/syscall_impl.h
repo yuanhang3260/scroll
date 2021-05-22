@@ -13,9 +13,9 @@
 #define SYSCALL_STAT_NUM     6
 #define SYSCALL_LISTDIR_NUM  7
 #define SYSCALL_PRINT_NUM    8
+#define SYSCALL_WAIT_NUM     9
 
 int32 syscall_handler(isr_params_t isr_params);
-
 
 
 #endif

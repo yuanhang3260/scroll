@@ -33,10 +33,12 @@ void hash_table_destroy(hash_table_t* this) {
       kfree(kv);
       linked_list_node_t* crt_node = kv_node;
       kv_node = crt_node->next;
+      linked_list_remove(bucket, crt_node);
       kfree(crt_node);
     }
   }
   kfree(this->buckets);
+  this->size = 0;
 }
 
 static linked_list_node_t* hash_table_bucket_lookup(
@@ -136,6 +138,22 @@ void* hash_table_remove(hash_table_t* this, uint32 key) {
   }
   return nullptr;
 }
+
+void hash_table_print(hash_table_t* this) {
+  monitor_printf("**************** hash table *****************\n");
+  monitor_printf("// size = %d\n", this->size);
+  for (uint32 i = 0; i < this->buckets_num; i++) {
+    linked_list_t* bucket = &this->buckets[i];
+    linked_list_node_t* kv_node = bucket->head;
+    while (kv_node != nullptr) {
+      hash_table_kv_t* kv = (hash_table_kv_t*)kv_node->ptr;
+      monitor_printf("key = %d, v_ptr = %x\n", kv->key, kv->v_ptr);
+      kv_node = kv_node->next;
+    }
+  }
+  monitor_printf("*********************************************\n");
+}
+
 
 // ****************************** unit test ***********************************
 void hash_table_test() {

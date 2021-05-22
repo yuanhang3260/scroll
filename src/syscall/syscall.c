@@ -10,6 +10,7 @@ extern int32 trigger_syscall_write(char* filename, char* buffer, uint32 offset, 
 extern int32 trigger_syscall_stat(char* filename, file_stat_t* stat);
 extern int32 trigger_syscall_listdir(char* dir);
 extern void trigger_syscall_print(char* str, void* args);
+extern void trigger_syscall_wait(uint32 pid, uint32* status);
 
 void exit(int32 exit_code) {
   return trigger_syscall_exit(exit_code);
@@ -45,4 +46,8 @@ int32 listdir(char* dir) {
 
 void print(char* str, void* args) {
   return trigger_syscall_print(str, args);
+}
+
+void wait(uint32 pid, uint32* status) {
+  return trigger_syscall_wait(pid, status);
 }
