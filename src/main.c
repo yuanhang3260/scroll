@@ -1,5 +1,3 @@
-#include "common/common.h"
-#include "common/stdlib.h"
 #include "monitor/monitor.h"
 #include "interrupt/timer.h"
 #include "interrupt/interrupt.h"
@@ -12,7 +10,6 @@
 #include "fs/fs.h"
 #include "driver/hard_disk.h"
 #include "utils/debug.h"
-#include "utils/hash_table.h"
 
 char* welcome = "# welcome to scroll kernel #";
 
@@ -30,12 +27,10 @@ int main() {
   init_kheap();
   //kheap_killer();
 
-  // init_hard_disk();
-  // init_file_system();
+  init_hard_disk();
+  init_file_system();
 
-  //init_scheduler();
-  hash_table_test();
-  while (1) {}
+  init_scheduler();
 
   // Never should reach here.
   PANIC();

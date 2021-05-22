@@ -9,8 +9,10 @@
 #include "fs/fs.h"
 #include "elf/elf.h"
 #include "utils/string.h"
+#include "utils/debug.h"
+#include "utils/hash_table.h"
 
-static uint32 next_pid = 1;
+static uint32 next_pid = 0;
 
 // TODO: remove it
 extern page_directory_t* current_page_directory;
@@ -33,15 +35,18 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
 
   process->user_thread_stack_indexes = bitmap_create(nullptr, USER_PRCOESS_THREDS_MAX);
 
+  hash_table_init(&process->threads);
+
   process->page_dir = clone_crt_page_dir();
+
+  spinlock_init(&process->lock);
 
   return process;
 }
 
 tcb_t* create_new_kernel_thread(pcb_t* process, char* name, void* function, char** argv) {
   tcb_t* thread = init_thread(nullptr, name, function, 0, argv, false, THREAD_DEFAULT_PRIORITY);
-  thread->process = process;
-  linked_list_append_ele(&process->threads, thread);
+  add_process_thread(process, thread);
   return thread;
 }
 
@@ -50,14 +55,17 @@ tcb_t* create_new_user_thread(
   // Create new thread on this process.
   tcb_t* thread = init_thread(
       nullptr, name, user_function, argc, argv, true, THREAD_DEFAULT_PRIORITY);
-  thread->process = process;
-  linked_list_append_ele(&process->threads, thread);
+  add_process_thread(process, thread);
 
   // Allocate a user space stack for this thread.
   uint32 stack_index;
+  spinlock_lock(&process->lock);
   if (!bitmap_allocate_first_free(&process->user_thread_stack_indexes, &stack_index)) {
-    return 0;
+    spinlock_unlock(&process->lock);
+    return nullptr;
   }
+  spinlock_unlock(&process->lock);
+
   thread->user_stack_index = stack_index;
   uint32 thread_stack_top = USER_STACK_TOP - stack_index * USER_STACK_SIZE;
   map_page((uint32)thread_stack_top - PAGE_SIZE);
@@ -65,6 +73,24 @@ tcb_t* create_new_user_thread(
   prepare_user_stack(thread, thread_stack_top, argc, argv, (uint32)schedule_thread_exit_normal);
 
   return thread;
+}
+
+void add_process_thread(pcb_t* process, tcb_t* thread) {
+  thread->process = process;
+  spinlock_lock(&process->lock);
+  hash_table_put(&process->threads, thread->id, thread);
+  spinlock_unlock(&process->lock);
+}
+
+void remove_process_thread(pcb_t* process, tcb_t* thread) {
+  spinlock_lock(&process->lock);
+  tcb_t* removed_thread = hash_table_remove(&process->threads, thread->id);
+  ASSERT(removed_thread == thread);
+  if (thread->user_stack_index >= 0) {
+    //monitor_printf("thread %d release user stack %d\n", thread->id, thread->user_stack_index);
+    bitmap_clear_bit(&process->user_thread_stack_indexes, thread->user_stack_index);
+  }
+  spinlock_unlock(&process->lock);
 }
 
 int32 process_fork() {
@@ -76,18 +102,20 @@ int32 process_fork() {
   thread->syscall_ret = true;
 
   // Add new thread to new process.
-  linked_list_append_ele(&process->threads, thread);
-  thread->process = process;
-  add_thread_to_schedule(thread);
+  add_process_thread(process, thread);
 
   // The user stack of this thread should be marked in process.
   bitmap_set_bit(&process->user_thread_stack_indexes, thread->user_stack_index);
+
+  add_thread_to_schedule(thread);
 
   // Parent should return the new pid.
   return process->id;
 }
 
 int32 process_exec(char* path, uint32 argc, char* argv[]) {
+  // TODO: disallow exec if there are multiple threads running on this process?
+
   // Read elf binary file.
   file_stat_t stat;
   if (stat_file(path, &stat) != 0) {
@@ -104,27 +132,20 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   }
 
   // Destroy all threads of this process (except current thread).
-  tcb_t* thread = get_crt_thread();
-  pcb_t* process = thread->process;
-  linked_list_t* threads = &process->threads;
-  linked_list_node_t* keep;
-  while (process->threads.size > 0) {
-    linked_list_node_t* head = threads->head;
-    linked_list_remove(threads, head);
-    if (head->ptr == thread) {
-      keep = head;
-      continue;
-    }
-    kfree(head);
-    kfree(head->ptr);
-  }
+  tcb_t* crt_thread = get_crt_thread();
+  pcb_t* process = crt_thread->process;
+  hash_table_t* threads = &process->threads;
+  tcb_t* keep_thread = hash_table_remove(threads, crt_thread->id);
+  ASSERT(keep_thread == crt_thread);
+  hash_table_destroy(threads);
 
   // TODO: remove destroyed threads from schedule task queues.
 
-  linked_list_append(threads, keep);
-
+  spinlock_lock(&process->lock);
+  hash_table_put(threads, keep_thread->id, crt_thread);
   // Release all user stacks.
   bitmap_clear(&process->user_thread_stack_indexes);
+  spinlock_unlock(&process->lock);
 
   // Copy argv[] to local since we will release all user pages of this process later.
   char** args = copy_str_array(argc, argv);

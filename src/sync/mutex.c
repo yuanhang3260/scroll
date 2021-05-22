@@ -18,6 +18,7 @@ void mutex_lock(mutex_t* mp) {
     spinlock_lock(&mp->waiting_task_queue_lock);
     linked_list_append(&mp->waiting_task_queue, thread_node);
     spinlock_unlock(&mp->waiting_task_queue_lock);
+    schedule_thread_yield();
   } else {
     mp->hold = LOCKED_YES;
   }

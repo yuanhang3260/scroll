@@ -3,13 +3,13 @@
 
 #include "common/common.h"
 #include "sync/spinlock.h"
-#include "task/thread.h"
+#include "utils/linked_list.h"
 
 // Mutex is a blocking lock. If thread can not acquire lock, it adds itself to mutex's waiting
 // queue and wait for the lock releaser to wake up it.
 struct mutex {
   volatile uint32 hold;
-  volatile thread_node_t* thread_node;
+  volatile linked_list_t* thread_node;
 
   // Note we use a spinlock to protect wait task queue.
   linked_list_t waiting_task_queue;

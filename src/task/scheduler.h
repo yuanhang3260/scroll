@@ -10,7 +10,9 @@ void init_scheduler();
 tcb_t* get_crt_thread();
 thread_node_t* get_crt_thread_node();
 
+// Add thread to ready task queue and wait for schedule.
 void add_thread_to_schedule(tcb_t* thread);
+void add_thread_node_to_schedule(thread_node_t* thread_node);
 
 // Called by timer interrupt handler.
 void maybe_context_switch();

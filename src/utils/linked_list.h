@@ -36,6 +36,9 @@ void linked_list_remove(linked_list_t* this, linked_list_node_t* n);
 void linked_list_append_ele(linked_list_t* this, type_t ptr);
 void linked_list_remove_ele(linked_list_t* this, type_t ptr);
 
+// move all nodes from one linked list to another.
+void linked_list_move(linked_list_t* dst, linked_list_t* src);
+
 
 // ******************************** unit tests **********************************
 void linked_list_test();

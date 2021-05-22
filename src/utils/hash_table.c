@@ -32,15 +32,15 @@ void hash_table_destroy(hash_table_t* this) {
       kfree(kv->v_ptr);
       kfree(kv);
       linked_list_node_t* crt_node = kv_node;
-      kv_node = kv_node->next;
+      kv_node = crt_node->next;
       kfree(crt_node);
     }
   }
   kfree(this->buckets);
 }
 
-static linked_list_node_t* hash_table_lookup(hash_table_t* this, uint32 key) {
-  linked_list_t* bucket = &this->buckets[key % this->buckets_num];
+static linked_list_node_t* hash_table_bucket_lookup(
+    hash_table_t* this, linked_list_t* bucket, uint32 key) {
   linked_list_node_t* kv_node = bucket->head;
   while (kv_node != nullptr) {
     hash_table_kv_t* kv = (hash_table_kv_t*)kv_node->ptr;
@@ -53,7 +53,8 @@ static linked_list_node_t* hash_table_lookup(hash_table_t* this, uint32 key) {
 }
 
 void* hash_table_get(hash_table_t* this, uint32 key) {
-  linked_list_node_t* kv_node = hash_table_lookup(this, key);
+  linked_list_t* bucket = &this->buckets[key % this->buckets_num];
+  linked_list_node_t* kv_node = hash_table_bucket_lookup(this, bucket, key);
   if (kv_node != nullptr) {
     hash_table_kv_t* kv = (hash_table_kv_t*)kv_node->ptr;
     return kv->v_ptr;
@@ -62,23 +63,21 @@ void* hash_table_get(hash_table_t* this, uint32 key) {
 }
 
 bool hash_table_contains(hash_table_t* this, uint32 key) {
-  return hash_table_lookup(this, key) != nullptr;
+  linked_list_t* bucket = &this->buckets[key % this->buckets_num];
+  return hash_table_bucket_lookup(this, bucket, key) != nullptr;
 }
 
 void* hash_table_put(hash_table_t* this, uint32 key, void* v_ptr) {
   linked_list_t* bucket = &this->buckets[key % this->buckets_num];
-  linked_list_node_t* kv_node = bucket->head;
-  while (kv_node != nullptr) {
+  linked_list_node_t* kv_node = hash_table_bucket_lookup(this, bucket, key);
+  if (kv_node != nullptr) {
     hash_table_kv_t* kv = (hash_table_kv_t*)kv_node->ptr;
-    if (kv->key == key) {
-      hash_table_kv_t* kv = (hash_table_kv_t*)kv_node->ptr;
-      void* old_value_ptr = kv->v_ptr;
-      kv->v_ptr = v_ptr;
-      return old_value_ptr;
-    }
-    kv_node = kv_node->next;
+    void* old_value_ptr = kv->v_ptr;
+    kv->v_ptr = v_ptr;
+    return old_value_ptr;
   }
 
+  // Insert new kv node.
   hash_table_kv_t* new_kv = (hash_table_kv_t*)kmalloc(sizeof(hash_table_kv_t));
   new_kv->key = key;
   new_kv->v_ptr = v_ptr;
@@ -123,20 +122,17 @@ static void hash_table_expand(hash_table_t* this) {
 
 void* hash_table_remove(hash_table_t* this, uint32 key) {
   linked_list_t* bucket = &this->buckets[key % this->buckets_num];
-  linked_list_node_t* kv_node = bucket->head;
-  while (kv_node != nullptr) {
+  linked_list_node_t* kv_node = hash_table_bucket_lookup(this, bucket, key);
+  if (kv_node != nullptr) {
+    linked_list_remove(bucket, kv_node);
     hash_table_kv_t* kv = (hash_table_kv_t*)kv_node->ptr;
-    if (kv->key == key) {
-      void* value = kv->v_ptr;
-      linked_list_remove(bucket, kv_node);
-      kfree(kv);
-      kfree(kv_node);
-      this->size--;
+    void* value = kv->v_ptr;
+    kfree(kv);
+    kfree(kv_node);
+    this->size--;
 
-      // TODO: shrink buckets if needed?
-      return value;
-    }
-    kv_node = kv_node->next;
+    // TODO: shrink buckets if needed?
+    return value;
   }
   return nullptr;
 }

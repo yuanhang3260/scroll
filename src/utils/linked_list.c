@@ -98,6 +98,14 @@ void linked_list_remove_ele(linked_list_t* this, type_t ptr) {
   }
 }
 
+void linked_list_move(linked_list_t* dst, linked_list_t* src) {
+  dst->head = src->head;
+  dst->tail = src->tail;
+  dst->size = src->size;
+
+  linked_list_init(src);
+}
+
 // ****************************************************************************
 void linked_list_test() {
   monitor_printf("linked_list test ... ");

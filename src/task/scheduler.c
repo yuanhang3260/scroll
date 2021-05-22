@@ -8,8 +8,11 @@
 #include "mem/gdt.h"
 #include "mem/kheap.h"
 #include "mem/paging.h"
+#include "sync/spinlock.h"
+#include "sync/mutex.h"
 #include "utils/linked_list.h"
 #include "utils/debug.h"
+#include "utils/hash_table.h"
 
 extern void cpu_idle();
 extern void context_switch(tcb_t* crt, tcb_t* next);
@@ -18,10 +21,13 @@ static pcb_t* main_process;
 static thread_node_t* main_thread_node;
 static thread_node_t* crt_thread_node;
 
+// ready task queue
 static linked_list_t ready_tasks;
+
+// died task queue
 static linked_list_t died_tasks;
 
-static bool main_thread_in_ready_queue = 0;
+static bool main_thread_in_ready_queue = false;
 
 tcb_t* get_crt_thread() {
   return (tcb_t*)(get_crt_thread_node()->ptr);
@@ -31,20 +37,27 @@ thread_node_t* get_crt_thread_node() {
   return crt_thread_node;
 }
 
+static void destroy_thread(thread_node_t* thread_node);
+
 static void kernel_main_thread(char* argv[]) {
   while (1) {
-    // Clean died tasks.
-    while (died_tasks.size > 0) {
-      thread_node_t* head = died_tasks.head;
-      linked_list_remove(&died_tasks, head);
-      tcb_t* thread = (tcb_t*)head->ptr;
-      //monitor_printf("clean thread %s\n", thread->name);
-      //kheap_validate_print(1);
-      kfree(head);
-      kfree(thread);
-    }
+    // Fast fetch out all nodes from died tasks.
+    disable_interrupt();
+    linked_list_t died_tasks_copy;
+    linked_list_move(&died_tasks_copy, &died_tasks);
+    enable_interrupt();
 
-    cpu_idle();
+    if (died_tasks_copy.size > 0) {
+      // Clean died tasks.
+      while (died_tasks_copy.size > 0) {
+        thread_node_t* head = died_tasks_copy.head;
+        linked_list_remove(&died_tasks_copy, head);
+        destroy_thread(head);
+      }
+      schedule_thread_yield();
+    } else {
+      cpu_idle();
+    }
   }
 }
 
@@ -115,23 +128,24 @@ void init_scheduler() {
   PANIC();
 }
 
-void add_thread_to_schedule(tcb_t* thread) {
-  thread_node_t* node = (thread_node_t*)kmalloc(sizeof(thread_node_t));
-  node->ptr = (void*)thread;
-  disable_interrupt();
-  linked_list_append(&ready_tasks, node);
-  enable_interrupt();
-}
-
 static void process_switch(pcb_t* process) {
   reload_page_directory(&process->page_dir);
 }
 
+// Note: interrupt must be DISABLED before entering this function.
 static void do_context_switch() {
-  // Context switch to next thread.
+  tcb_t* old_thread = get_crt_thread();
+  if (old_thread->status == TASK_DIED) {
+    // If current thread is dead, add it to died tasks queue and wake up main thread to clean up.
+    linked_list_append(&died_tasks, crt_thread_node);
+    if (!main_thread_in_ready_queue) {
+      linked_list_append(&ready_tasks, main_thread_node);
+      main_thread_in_ready_queue = 1;
+    }
+  }
+
   thread_node_t* head = ready_tasks.head;
   linked_list_remove(&ready_tasks, head);
-  tcb_t* old_thread = get_crt_thread();
   tcb_t* next_thread = (tcb_t*)head->ptr;
 
   if (old_thread->status == TASK_RUNNING && crt_thread_node != main_thread_node) {
@@ -178,6 +192,18 @@ void maybe_context_switch() {
   }
 }
 
+void add_thread_to_schedule(tcb_t* thread) {
+  thread_node_t* node = (thread_node_t*)kmalloc(sizeof(thread_node_t));
+  node->ptr = (void*)thread;
+  add_thread_node_to_schedule(node);
+}
+
+void add_thread_node_to_schedule(thread_node_t* thread_node) {
+  disable_interrupt();
+  linked_list_append(&ready_tasks, thread_node);
+  enable_interrupt();
+}
+
 void schedule_thread_yield() {
   disable_interrupt();
   if (ready_tasks.size > 0) {
@@ -187,35 +213,27 @@ void schedule_thread_yield() {
   }
 }
 
-// Put this thread to died_tasks queue, and maybe wake up main thread to clean.
 void schedule_thread_exit(int32 exit_code) {
+  // Set this thread status as TASK_DIED.
   tcb_t* thread = get_crt_thread();
-  // Remove this thread from its process and release resources.
-  // TODO: use lock
-  disable_interrupt();
-  pcb_t* process = thread->process;
-  linked_list_remove_ele(&process->threads, thread);
-  if (thread->user_stack_index >= 0) {
-    //monitor_printf("thread %d release user stack %d\n", thread->id, thread->user_stack_index);
-    bitmap_clear_bit(&process->user_thread_stack_indexes, thread->user_stack_index);
-  }
-  enable_interrupt();
 
+  disable_interrupt();
   thread->status = TASK_DIED;
-  disable_interrupt();
-  linked_list_append(&died_tasks, crt_thread_node);
-
-  // If any of these conditions matches, wake up the main thread to clean died tasks.
-  //  - If died tasks queue length is over threshold;
-  //  - If there is no other ready tasks to execute;
-  if (!main_thread_in_ready_queue && (died_tasks.size >= 1 || ready_tasks.size == 0)) {
-    linked_list_append(&ready_tasks, main_thread_node);
-    main_thread_in_ready_queue = 1;
-  }
-
   do_context_switch();
 }
 
 void schedule_thread_exit_normal() {
   exit(0);
+}
+
+static void destroy_thread(thread_node_t* thread_node) {
+  tcb_t* thread = (tcb_t*)thread_node->ptr;
+  //monitor_printf("clean thread %s\n", thread->name);
+
+  // Remove this thread from its process and release resources.
+  pcb_t* process = thread->process;
+  remove_process_thread(process, thread);
+
+  kfree(thread);
+  kfree(thread_node);
 }
