@@ -41,7 +41,7 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
 
   linked_list_init(&process->waiting_thread_nodes);
 
-  hash_table_init(&process->children_exit_codes);
+  hash_table_init(&process->wait_exit_codes);
 
   process->page_dir = clone_crt_page_dir();
 
@@ -193,8 +193,8 @@ int32 process_wait(uint32 pid, uint32* status) {
   pcb_t* process = thread->process;
 
   spinlock_lock(&process->lock);
-  hash_table_t* children_exit_codes = &process->children_exit_codes;
-  uint32* exit_code = (uint32*)hash_table_get(children_exit_codes, pid);
+  hash_table_t* wait_exit_codes = &process->wait_exit_codes;
+  uint32* exit_code = (uint32*)hash_table_get(wait_exit_codes, pid);
   spinlock_unlock(&process->lock);
   if (exit_code != nullptr) {
     *status = *exit_code;
@@ -206,8 +206,8 @@ int32 process_wait(uint32 pid, uint32* status) {
 
     // waken up
     spinlock_lock(&process->lock);
-    hash_table_t* children_exit_codes = &process->children_exit_codes;
-    uint32* exit_code = (uint32*)hash_table_get(children_exit_codes, pid);
+    hash_table_t* wait_exit_codes = &process->wait_exit_codes;
+    uint32* exit_code = (uint32*)hash_table_get(wait_exit_codes, pid);
     *status = *exit_code;
     spinlock_unlock(&process->lock);
   }
@@ -234,7 +234,7 @@ void exit_process(pcb_t* process, int32 exit_code) {
     uint32* exit_code_copy = (uint32*)kmalloc(sizeof(uint32));
     *exit_code_copy = exit_code;
     spinlock_lock(&wait_process->lock);
-    hash_table_put(&wait_process->children_exit_codes, process->id, exit_code_copy);
+    hash_table_put(&wait_process->wait_exit_codes, process->id, exit_code_copy);
     spinlock_unlock(&wait_process->lock);
 
     // Wake up waiting thread.
@@ -244,13 +244,13 @@ void exit_process(pcb_t* process, int32 exit_code) {
 
 // Destroy a process and release all its resources:
 //  - user_thread_stack_indexes bitmap;
-//  - children_exit_codes;
+//  - wait_exit_codes;
 //  - all pages (including page dir and page tables);
 void destroy_process(pcb_t* process) {
   bitmap_destroy(&process->user_thread_stack_indexes);
   // TODO: release all page frames;
 
-  hash_table_destroy(&process->children_exit_codes);
+  hash_table_destroy(&process->wait_exit_codes);
 
   kfree(process);
 }

@@ -31,9 +31,10 @@ struct process_struct {
   // is kernel process?
   uint8 is_kernel_process;
 
-  // exit code of child processes.
-  hash_table_t children_exit_codes;
+  // exit code of processes this process is waiting for.
+  hash_table_t wait_exit_codes;
 
+  // waiting threads.
   linked_list_t waiting_thread_nodes;
 
   // lock to protect this struct
