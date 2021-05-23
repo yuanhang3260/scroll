@@ -47,7 +47,10 @@ thread_node_t* get_crt_thread_node() {
 }
 
 pcb_t* get_process(uint32 pid) {
-  return hash_table_get(&processes_map, pid);
+  spinlock_lock(&processes_map_lock);
+  pcb_t* process = hash_table_get(&processes_map, pid);
+  spinlock_unlock(&processes_map_lock);
+  return process;
 }
 
 static void destroy_thread(thread_node_t* thread_node);
@@ -196,18 +199,18 @@ static void do_context_switch() {
 
 void maybe_context_switch() {
   disable_interrupt();
-  uint32 can_context_switch = 0;
+  uint32 need_context_switch = 0;
   if (ready_tasks.size > 0) {
     tcb_t* crt_thread = get_crt_thread();
     crt_thread->ticks++;
     // Current thread has run out of time slice, switch to next ready thread.
     if (crt_thread->ticks >= crt_thread->priority) {
       crt_thread->ticks = 0;
-      can_context_switch = 1;
+      need_context_switch = 1;
     }
   }
 
-  if (can_context_switch) {
+  if (need_context_switch) {
     //monitor_printf("context_switch yes, %d ready tasks\n", ready_tasks.size);
     do_context_switch();
   } else {
@@ -259,8 +262,9 @@ static void destroy_thread(thread_node_t* thread_node) {
   // Remove this thread from its process and release resources.
   pcb_t* process = thread->process;
   remove_process_thread(process, thread);
+
+  // If all threads exit, this process should exit too.
   if (process->threads.size == 0) {
-    // Last thread exit, this process should exit.
     //monitor_printf("process %d has no threads, destroying\n", process->id);
 
     // Remove this process from prcoesses map.
@@ -270,7 +274,7 @@ static void destroy_thread(thread_node_t* thread_node) {
 
     // Process exit and destroy.
     //monitor_printf("prcess %d exit with %d\n", process->id, thread->exit_code);
-    process_exit(process, thread->exit_code);
+    exit_process(process, thread->exit_code);
     destroy_process(process);
   }
 

@@ -17,6 +17,8 @@ struct process_struct {
   uint32 id;
   char name[32];
 
+  uint32 parent_pid;
+
   // tid -> threads;
   hash_table_t threads;
 
@@ -29,11 +31,10 @@ struct process_struct {
   // is kernel process?
   uint8 is_kernel_process;
 
-  // waiting threads
-  linked_list_t waiting_thread_nodes;
+  // exit code of child processes.
+  hash_table_t children_exit_codes;
 
-  // exit code map of processes that this process waits.
-  hash_table_t wait_exit_codes;
+  linked_list_t waiting_thread_nodes;
 
   // lock to protect this struct
   spinlock_t lock;
@@ -52,11 +53,12 @@ struct task_struct* create_new_user_thread(
 void add_process_thread(pcb_t* process, struct task_struct* thread);
 void remove_process_thread(pcb_t* process, struct task_struct* thread);
 
-void process_exit(pcb_t* process, int32 exit_code);
+void exit_process(pcb_t* process, int32 exit_code);
 void destroy_process(pcb_t* process);
 
+// syscalls implementation
 int32 process_fork();
 int32 process_exec(char* path, uint32 argc, char* argv[]);
-void process_wait(uint32 pid, uint32* status);
+int32 process_wait(uint32 pid, uint32* status);
 
 #endif

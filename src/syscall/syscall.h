@@ -22,6 +22,6 @@ int32 listdir(char* dir);
 
 void print(char* str, void* args);
 
-void wait(uint32 pid, uint32* status);
+int32 wait(uint32 pid, uint32* status);
 
 #endif

@@ -49,8 +49,7 @@ static int32 syscall_print_impl(char* str, void* args_ptr) {
 }
 
 static int32 syscall_wait_impl(uint32 pid, uint32* status) {
-  process_wait(pid, status);
-  return 0;
+  return process_wait(pid, status);
 }
 
 int32 syscall_handler(isr_params_t isr_params) {
