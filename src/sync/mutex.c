@@ -1,29 +1,40 @@
 #include "sync/mutex.h"
 #include "task/scheduler.h"
-#include "mem/kheap.h"
 
 extern uint32 atomic_exchange(volatile uint32* dst, uint32 src);
 
 void mutex_init(mutex_t* mp) {
   mp->hold = LOCKED_NO;
   mp->thread_node = nullptr;
-  mp->waiting_task_queue = create_linked_list();
-  spinlock_init(&mp->waiting_task_queue_lock);
+  linked_list_init(&mp->waiting_task_queue);
+  spinlock_init(&mp->splock);
 }
 
 void mutex_lock(mutex_t* mp) {
-  if (atomic_exchange(&mp->hold , LOCKED_YES) != LOCKED_NO) {
+  spinlock_lock(&mp->splock);
+  while (atomic_exchange(&mp->hold , LOCKED_YES) != LOCKED_NO) {
     // Add current thread to wait queue.
     thread_node_t* thread_node = get_crt_thread_node();
-    spinlock_lock(&mp->waiting_task_queue_lock);
     linked_list_append(&mp->waiting_task_queue, thread_node);
-    spinlock_unlock(&mp->waiting_task_queue_lock);
+    spinlock_unlock(&mp->splock);
     schedule_thread_yield();
-  } else {
-    mp->hold = LOCKED_YES;
+
+    // Waken up, and try acquire lock again.
+    spinlock_lock(&mp->splock);
   }
+  spinlock_unlock(&mp->splock);
 }
 
 void mutex_unlock(mutex_t* mp) {
+  spinlock_lock(&mp->splock);
   mp->hold = LOCKED_NO;
+  mp->thread_node = nullptr;
+
+  if (mp->waiting_task_queue.size != 0) {
+    // Wake up waiting thread.
+    thread_node_t* head = mp->waiting_task_queue.head;
+    linked_list_remove(&mp->waiting_task_queue, head);
+    add_thread_node_to_schedule(head);
+  }
+  spinlock_unlock(&mp->splock);
 }

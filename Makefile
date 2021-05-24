@@ -30,6 +30,7 @@ OBJS_C = \
 	$(OBJ_DIR)/sync/cas.o \
 	$(OBJ_DIR)/sync/spinlock.o \
 	$(OBJ_DIR)/sync/mutex.o \
+	$(OBJ_DIR)/sync/cond_var.o \
 	$(OBJ_DIR)/fs/disk_io.o \
 	$(OBJ_DIR)/fs/fs.o \
 	$(OBJ_DIR)/fs/file.o \

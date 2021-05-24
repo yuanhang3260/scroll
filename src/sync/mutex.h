@@ -9,11 +9,9 @@
 // queue and wait for the lock releaser to wake up it.
 struct mutex {
   volatile uint32 hold;
-  volatile linked_list_t* thread_node;
-
-  // Note we use a spinlock to protect wait task queue.
+  volatile struct linked_list_node* thread_node;
   linked_list_t waiting_task_queue;
-  spinlock_t waiting_task_queue_lock;
+  spinlock_t splock;
 };
 typedef struct mutex mutex_t;
 
