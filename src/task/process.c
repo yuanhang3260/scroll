@@ -212,7 +212,7 @@ int32 process_wait(uint32 pid, uint32* status) {
     }
     child->waiting_parent = thread_node;
     spinlock_unlock(&child->lock);
-    //thread->status = TASK_WAITING;
+    thread->status = TASK_WAITING;
     schedule_thread_yield();
 
     spinlock_lock(&child->lock);
