@@ -12,7 +12,7 @@
 #include "utils/debug.h"
 
 static int32 syscall_exit_impl(int32 exit_code) {
-  schedule_thread_exit(exit_code);
+  process_exit(exit_code);
 }
 
 static int32 syscall_fork_impl() {
@@ -52,6 +52,11 @@ static int32 syscall_wait_impl(uint32 pid, uint32* status) {
   return process_wait(pid, status);
 }
 
+static int32 syscall_thread_exit_impl() {
+  schedule_thread_exit();
+  return 0;
+}
+
 int32 syscall_handler(isr_params_t isr_params) {
   // syscall num saved in eax.
   // args list: ecx, edx, ebx, esi, edi
@@ -80,6 +85,8 @@ int32 syscall_handler(isr_params_t isr_params) {
       return syscall_print_impl((char*)isr_params.ecx, (void*)isr_params.edx);
     case SYSCALL_WAIT_NUM:
       return syscall_wait_impl((uint32)isr_params.ecx, (uint32*)isr_params.edx);
+    case SYSCALL_THREAD_EXIT_NUM:
+      return syscall_thread_exit_impl();
     default:
       PANIC();
   }

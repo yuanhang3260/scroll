@@ -18,26 +18,33 @@ extern void cpu_idle();
 extern int32 get_eax();
 extern void context_switch(tcb_t* crt, tcb_t* next);
 
+// ****************************************************************************
 static pcb_t* main_process;
 static thread_node_t* main_thread_node;
 static thread_node_t* crt_thread_node;
 
 // processes map
-hash_table_t processes_map;
-spinlock_t processes_map_lock;
+static hash_table_t processes_map;
+static spinlock_t processes_map_lock;
+
+// dead processes waiting for clean
+static linked_list_t dead_processes;
+static spinlock_t dead_processes_lock;
 
 // threads map
-hash_table_t threads_map;
-spinlock_t threads_map_lock;
+static hash_table_t threads_map;
+static spinlock_t threads_map_lock;
 
 // ready task queue
 static linked_list_t ready_tasks;
 
-// died task queue
-static linked_list_t died_tasks;
+// dead task queue
+static linked_list_t dead_tasks;
 
 static bool main_thread_in_ready_queue = false;
 
+
+// ****************************************************************************
 tcb_t* get_crt_thread() {
   return (tcb_t*)(get_crt_thread_node()->ptr);
 }
@@ -57,17 +64,17 @@ static void destroy_thread(thread_node_t* thread_node);
 
 static void kernel_main_thread(char* argv[]) {
   while (1) {
-    // Fast fetch out all nodes from died tasks.
+    // Fast fetch out all nodes from dead tasks.
     disable_interrupt();
-    linked_list_t died_tasks_copy;
-    linked_list_move(&died_tasks_copy, &died_tasks);
+    linked_list_t dead_tasks_copy;
+    linked_list_move(&dead_tasks_copy, &dead_tasks);
     enable_interrupt();
 
-    if (died_tasks_copy.size > 0) {
-      // Clean died tasks.
-      while (died_tasks_copy.size > 0) {
-        thread_node_t* head = died_tasks_copy.head;
-        linked_list_remove(&died_tasks_copy, head);
+    if (dead_tasks_copy.size > 0) {
+      // Clean dead tasks.
+      while (dead_tasks_copy.size > 0) {
+        thread_node_t* head = dead_tasks_copy.head;
+        linked_list_remove(&dead_tasks_copy, head);
         destroy_thread(head);
       }
       schedule_thread_yield();
@@ -120,10 +127,16 @@ static void ancestor_kernel_thread(char* argv[]) {
 void init_scheduler() {
   // Init task queues.
   linked_list_init(&ready_tasks);
-  linked_list_init(&died_tasks);
+  linked_list_init(&dead_tasks);
 
   hash_table_init(&processes_map);
+  spinlock_init(&processes_map_lock);
+
+  linked_list_init(&dead_processes);
+  spinlock_init(&dead_processes_lock);
+
   hash_table_init(&threads_map);
+  spinlock_init(&threads_map_lock);
 
   // Create process 0: kernel main
   main_process = create_process("kernel_main_process", /* is_kernel_process = */true);
@@ -161,10 +174,11 @@ static void process_switch(pcb_t* process) {
 
 // Note: interrupt must be DISABLED before entering this function.
 static void do_context_switch() {
+  //monitor_printf("ready_tasks num = %d\n", ready_tasks.size);
   tcb_t* old_thread = get_crt_thread();
-  if (old_thread->status == TASK_DIED) {
-    // If current thread is dead, add it to died tasks queue and wake up main thread to clean up.
-    linked_list_append(&died_tasks, crt_thread_node);
+  if (old_thread->status == TASK_DEAD) {
+    // If current thread is dead, add it to dead tasks queue and wake up main thread to clean up.
+    linked_list_append(&dead_tasks, crt_thread_node);
     if (!main_thread_in_ready_queue) {
       linked_list_append(&ready_tasks, main_thread_node);
       main_thread_in_ready_queue = 1;
@@ -177,8 +191,7 @@ static void do_context_switch() {
 
   if (old_thread->status == TASK_RUNNING && crt_thread_node != main_thread_node) {
     old_thread->status = TASK_READY;
-    head->ptr = (void*)old_thread;
-    linked_list_append(&ready_tasks, head);
+    linked_list_append(&ready_tasks, crt_thread_node);
   }
 
   next_thread->status = TASK_RUNNING;
@@ -193,7 +206,7 @@ static void do_context_switch() {
     process_switch(next_thread->process);
   }
 
-  //monitor_printf("switch to thread %u\n", next_thread->id);
+  //monitor_printf("thread %u switch to thread %u\n", old_thread->id, next_thread->id);
   context_switch(old_thread, next_thread);
 }
 
@@ -227,6 +240,8 @@ void add_thread_to_schedule(tcb_t* thread) {
 
 void add_thread_node_to_schedule(thread_node_t* thread_node) {
   disable_interrupt();
+  tcb_t* thread = (tcb_t*)thread_node->ptr;
+  thread->status = TASK_READY;
   linked_list_append(&ready_tasks, thread_node);
   enable_interrupt();
 }
@@ -234,56 +249,61 @@ void add_thread_node_to_schedule(thread_node_t* thread_node) {
 void schedule_thread_yield() {
   disable_interrupt();
   if (ready_tasks.size > 0) {
+    //monitor_printf("thread %d yield\n", get_crt_thread()->id);
     do_context_switch();
   } else {
     enable_interrupt();
   }
 }
 
-void schedule_thread_exit(int32 exit_code) {
-  // Set this thread status as TASK_DIED.
+void schedule_thread_exit() {
+  // Detach this thread from its process.
   tcb_t* thread = get_crt_thread();
-  thread->exit_code = exit_code;
+  pcb_t* process = thread->process;
+  remove_process_thread(process, thread);
 
+  // Mark this thread TASK_dead.
   disable_interrupt();
-  thread->status = TASK_DIED;
+  thread->status = TASK_DEAD;
   do_context_switch();
 }
 
 void schedule_thread_exit_normal() {
-  uint32 eax = get_eax();
-  exit(eax);
+  thread_exit();
 }
 
+// TODO: move it to thread.c
 static void destroy_thread(thread_node_t* thread_node) {
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   //monitor_printf("clean thread %s\n", thread->name);
 
-  // Remove this thread from its process and release resources.
-  pcb_t* process = thread->process;
-  remove_process_thread(process, thread);
+  // // If all threads exit, this process should exit too.
+  // if (process->threads.size == 0) {
+  //   //monitor_printf("process %d has no threads, destroying\n", process->id);
 
-  // If all threads exit, this process should exit too.
-  if (process->threads.size == 0) {
-    //monitor_printf("process %d has no threads, destroying\n", process->id);
+  //   // Remove this process from prcoesses map.
+  //   spinlock_lock(&processes_map_lock);
+  //   ASSERT(hash_table_remove(&processes_map, process->id) == process);
+  //   spinlock_unlock(&processes_map_lock);
 
-    // Remove this process from prcoesses map.
-    spinlock_lock(&processes_map_lock);
-    ASSERT(hash_table_remove(&processes_map, process->id) == process);
-    spinlock_unlock(&processes_map_lock);
-
-    // Process exit and destroy.
-    //monitor_printf("prcess %d exit with %d\n", process->id, thread->exit_code);
-    exit_process(process, thread->exit_code);
-    destroy_process(process);
-  }
+  //   // Process exit and destroy.
+  //   //monitor_printf("process %d exit with %d\n", process->id, thread->exit_code);
+  //   process_exit();
+  //   destroy_process(process);
+  // }
 
   kfree(thread);
   kfree(thread_node);
 }
 
-void add_process_to_schedule(pcb_t* process) {
+void add_new_process(pcb_t* process) {
   spinlock_lock(&processes_map_lock);
   hash_table_put(&processes_map, process->id, process);
   spinlock_unlock(&processes_map_lock);
+}
+
+void add_dead_process(pcb_t* process) {
+  spinlock_lock(&dead_processes_lock);
+  linked_list_append_ele(&dead_processes, process);
+  spinlock_unlock(&dead_processes_lock);
 }

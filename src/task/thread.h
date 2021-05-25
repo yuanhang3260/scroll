@@ -30,7 +30,7 @@ enum task_status {
   TASK_BLOCKED,
   TASK_WAITING,
   TASK_HANGING,
-  TASK_DIED
+  TASK_DEAD
 };
 
 struct task_struct {
@@ -49,8 +49,6 @@ struct task_struct {
   int32 user_stack_index;
   // syscall mark
   bool syscall_ret;
-  // exit code
-  int32 exit_code;
   // boundary of tcb_t and thread stack.
   uint32 stack_magic;
 };

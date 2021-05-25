@@ -24,4 +24,6 @@ void print(char* str, void* args);
 
 int32 wait(uint32 pid, uint32* status);
 
+void thread_exit();
+
 #endif

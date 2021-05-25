@@ -18,6 +18,7 @@ SYS_OBJS = \
 	$(SYS_LIB_DIR)/syscall/syscall_trigger.o \
 	$(SYS_LIB_DIR)/utils/math.o \
 	$(SYS_LIB_DIR)/fs/file.o \
+	$(LIB_DIR)/sys/common.o
 
 PROGS = \
   ${BIN_DIR}/hello \
@@ -41,6 +42,10 @@ $(BIN_DIR)/%: $(LIB_DIR)/%.o ${SYS_OBJS}
 	ld $(LDFLAGS) $< ${SYS_OBJS} -o $@
 
 $(LIB_DIR)/%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(LIB_DIR)/sys/%.o: $(SRC_DIR)/sys/%.c $(SRC_DIR)/sys/%.h
+	mkdir -p $(LIB_DIR)/sys
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 clean:

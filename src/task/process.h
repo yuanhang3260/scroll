@@ -13,29 +13,43 @@
 #define USER_STACK_SIZE  65536       // 64KB
 #define USER_PRCOESS_THREDS_MAX  4096
 
+enum process_status {
+  PROCESS_NORMAL,
+  PROCESS_EXIT,
+  PROCESS_EXIT_ZOMBIE
+};
+
 struct process_struct {
   uint32 id;
   char name[32];
 
   uint32 parent_pid;
 
-  // tid -> threads;
+  enum process_status status;
+
+  // tid -> threads
   hash_table_t threads;
 
-  // allocate user space thread for threads.
+  // allocate user space thread for threads
   bitmap_t user_thread_stack_indexes;
-
-  // page directory.
-  page_directory_t page_dir;
 
   // is kernel process?
   uint8 is_kernel_process;
 
-  // exit code of processes this process is waiting for.
-  hash_table_t wait_exit_codes;
+  // exit code
+  int32 exit_code;
 
-  // waiting threads.
-  linked_list_t waiting_thread_nodes;
+  // children processes
+  hash_table_t children_processes;
+
+  // exit children processes
+  hash_table_t exit_children_processes;
+
+  // waiting parent thread
+  struct linked_list_node* waiting_parent;
+
+  // page directory
+  page_directory_t page_dir;
 
   // lock to protect this struct
   spinlock_t lock;
@@ -54,12 +68,14 @@ struct task_struct* create_new_user_thread(
 void add_process_thread(pcb_t* process, struct task_struct* thread);
 void remove_process_thread(pcb_t* process, struct task_struct* thread);
 
-void exit_process(pcb_t* process, int32 exit_code);
+void add_child_process(pcb_t* parent, pcb_t* child);
+
 void destroy_process(pcb_t* process);
 
 // syscalls implementation
 int32 process_fork();
 int32 process_exec(char* path, uint32 argc, char* argv[]);
 int32 process_wait(uint32 pid, uint32* status);
+void process_exit(int32 exit_code);
 
 #endif

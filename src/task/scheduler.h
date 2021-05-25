@@ -17,16 +17,17 @@ pcb_t* get_process(uint32 pid);
 void add_thread_to_schedule(struct task_struct* thread);
 void add_thread_node_to_schedule(thread_node_t* thread_node);
 
-// Add process to scheduler
-void add_process_to_schedule(pcb_t* process);
-
 // Called by timer interrupt handler.
 void maybe_context_switch();
 
 // Yield thread - give up cpu and move current thread to ready queue tail.
 void schedule_thread_yield();
 
-void schedule_thread_exit(int32 exit_code);
+void schedule_thread_exit();
 void schedule_thread_exit_normal();
+
+// Add process to scheduler
+void add_new_process(pcb_t* process);
+void add_dead_process(pcb_t* process);
 
 #endif

@@ -11,6 +11,7 @@ extern int32 trigger_syscall_stat(char* filename, file_stat_t* stat);
 extern int32 trigger_syscall_listdir(char* dir);
 extern void trigger_syscall_print(char* str, void* args);
 extern int32 trigger_syscall_wait(uint32 pid, uint32* status);
+extern int32 trigger_syscall_thread_exit();
 
 void exit(int32 exit_code) {
   return trigger_syscall_exit(exit_code);
@@ -25,7 +26,7 @@ int32 exec(char* path, uint32 argc, char* argv[]) {
 }
 
 void yield() {
-  return trigger_syscall_yield();
+  trigger_syscall_yield();
 }
 
 int32 read(char* filename, char* buffer, uint32 offset, uint32 size) {
@@ -50,4 +51,8 @@ void print(char* str, void* args) {
 
 int32 wait(uint32 pid, uint32* status) {
   return trigger_syscall_wait(pid, status);
+}
+
+void thread_exit() {
+  trigger_syscall_thread_exit();
 }
