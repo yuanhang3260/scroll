@@ -3,7 +3,6 @@
 #include "syscall/syscall.h"
 
 void main(uint32 argc, char* argv[]) {
-  printf("****************************\n");
   printf("start user app: hello\n");
   printf("argc = %d\n", argc);
   for (uint32 i = 0; i < argc; i++) {

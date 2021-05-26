@@ -3,6 +3,10 @@
 #include "utils/string.h"
 
 char** copy_str_array(uint32 num, char* str_array[]) {
+  if (num == 0 && str_array == nullptr) {
+    return nullptr;
+  }
+
   char** result = (char**)kmalloc(num * 4);
   for (uint32 i = 0; i < num; i++) {
     int32 length = 0;
@@ -18,6 +22,10 @@ char** copy_str_array(uint32 num, char* str_array[]) {
 }
 
 void destroy_str_array(uint32 num, char* str_array[]) {
+  if (num == 0 && str_array == nullptr) {
+    return;
+  }
+
   for (uint32 i = 0; i < num; i++) {
     kfree(str_array[i]);
   }

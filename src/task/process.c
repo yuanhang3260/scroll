@@ -143,14 +143,14 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   // Read elf binary file.
   file_stat_t stat;
   if (stat_file(path, &stat) != 0) {
-    monitor_printf("faile to get file %s\n", path);
+    monitor_printf("Command %s not found\n", path);
     return -1;
   }
 
   uint32 size = stat.size;
   char* read_buffer = (char*)kmalloc(size);
   if (read_file(path, read_buffer, 0, size) != size) {
-    monitor_printf("faile to read file %s\n", path);
+    monitor_printf("Failed to load cmd %s\n", path);
     kfree(read_buffer);
     return -1;
   }
@@ -172,8 +172,11 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   bitmap_clear(&process->user_thread_stack_indexes);
   spinlock_unlock(&process->lock);
 
-  // Copy argv[] to local since we will release all user pages of this process later.
+  // Copy path and argv[] to local since we will release all user pages of this process later.
   char** args = copy_str_array(argc, argv);
+  char* path_copy = (char*)kmalloc(strlen(path) + 1);
+  strcpy(path_copy, path);
+
 
   // Release all user space pages of this process.
   // User virtual space is 4MB - 3G, totally 1024 * 3/4 - 1 = 767 page dir entries.
@@ -185,13 +188,14 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
     monitor_printf("faile to load elf file %s\n", path);
     return -1;
   }
-  monitor_printf("entry = %x\n", exec_entry);
+  //monitor_printf("entry = %x\n", exec_entry);
   kfree(read_buffer);
 
   // Create a new thread to exec new program.
-  tcb_t* new_thread = create_new_user_thread(process, path, (void*)exec_entry, argc, args);
+  tcb_t* new_thread = create_new_user_thread(process, path_copy, (void*)exec_entry, argc, args);
   add_thread_to_schedule(new_thread);
   destroy_str_array(argc, args);
+  kfree(path_copy);
 
   // Exit current thread. This thread will never return to user mode.
   schedule_thread_exit();
@@ -212,8 +216,7 @@ int32 process_wait(uint32 pid, uint32* status) {
     }
     child->waiting_parent = thread_node;
     spinlock_unlock(&child->lock);
-    thread->status = TASK_WAITING;
-    schedule_thread_yield();
+    schedule_thread_block();
 
     spinlock_lock(&child->lock);
   }

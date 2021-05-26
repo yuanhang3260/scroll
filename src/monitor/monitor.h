@@ -35,4 +35,6 @@ void monitor_printf_args(char* str, void* args);
 
 void monitor_print_with_color(char* str, uint8 color);
 
+void monitor_move_cursor(int32 delta_x, int32 delta_y);
+
 #endif

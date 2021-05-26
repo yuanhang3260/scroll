@@ -53,6 +53,10 @@ thread_node_t* get_crt_thread_node() {
   return crt_thread_node;
 }
 
+bool is_kernel_main_thread() {
+  return crt_thread_node == main_thread_node;
+}
+
 pcb_t* get_process(uint32 pid) {
   spinlock_lock(&processes_map_lock);
   pcb_t* process = hash_table_get(&processes_map, pid);
@@ -98,15 +102,11 @@ static void ancestor_user_thread() {
     monitor_printf("child process exit with code %d\n", status);
   } else {
     // child: thread-3
-    printf("child process start ok\n");
-
-    char* prog = "ls";
-    printf(">> %s\n", prog);
-    char* argv[1];
-    argv[0] = "greeting.txt";
+    //printf("child process start ok\n");
 
     // thread-4
-    exec(prog, 1, argv);
+    char* prog = "shell";
+    exec(prog, 0, nullptr);
   }
 }
 
@@ -181,7 +181,7 @@ static void do_context_switch() {
     linked_list_append(&dead_tasks, crt_thread_node);
     if (!main_thread_in_ready_queue) {
       linked_list_append(&ready_tasks, main_thread_node);
-      main_thread_in_ready_queue = 1;
+      main_thread_in_ready_queue = true;
     }
   }
 
@@ -246,6 +246,14 @@ void add_thread_node_to_schedule(thread_node_t* thread_node) {
   enable_interrupt();
 }
 
+void add_thread_node_to_schedule_head(thread_node_t* thread_node) {
+  disable_interrupt();
+  tcb_t* thread = (tcb_t*)thread_node->ptr;
+  thread->status = TASK_READY;
+  linked_list_insert_to_head(&ready_tasks, thread_node);
+  enable_interrupt();
+}
+
 void schedule_thread_yield() {
   disable_interrupt();
   if (ready_tasks.size > 0) {
@@ -254,6 +262,18 @@ void schedule_thread_yield() {
   } else {
     enable_interrupt();
   }
+}
+
+void schedule_thread_block() {
+  tcb_t* thread = (tcb_t*)crt_thread_node->ptr;
+  thread->status = TASK_WAITING;
+
+  disable_interrupt();
+  if (ready_tasks.size == 0) {
+    linked_list_append(&ready_tasks, main_thread_node);
+    main_thread_in_ready_queue = 1;
+  }
+  do_context_switch();
 }
 
 void schedule_thread_exit() {

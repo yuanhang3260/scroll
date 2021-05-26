@@ -9,6 +9,7 @@
 #include "task/scheduler.h"
 #include "fs/fs.h"
 #include "driver/hard_disk.h"
+#include "driver/keyboard.h"
 #include "utils/debug.h"
 
 char* welcome = "# welcome to scroll kernel #";
@@ -25,10 +26,11 @@ int main() {
 
   init_paging();
   init_kheap();
-  //kheap_killer();
 
   init_hard_disk();
   init_file_system();
+
+  init_keyboard();
 
   init_scheduler();
 

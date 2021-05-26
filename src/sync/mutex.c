@@ -17,7 +17,7 @@ void mutex_lock(mutex_t* mp) {
     thread_node_t* thread_node = get_crt_thread_node();
     linked_list_append(&mp->waiting_task_queue, thread_node);
     spinlock_unlock(&mp->splock);
-    schedule_thread_yield();
+    schedule_thread_block();
 
     // Waken up, and try acquire lock again.
     spinlock_lock(&mp->splock);

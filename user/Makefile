@@ -13,6 +13,7 @@ LDFLAGS=-m elf_i386 -Tlink.ld
 SYS_OBJS = \
 	$(SYS_LIB_DIR)/common/common.o \
 	$(SYS_LIB_DIR)/common/stdio.o \
+	$(SYS_LIB_DIR)/common/stdlib.o \
 	$(SYS_LIB_DIR)/common/util.o \
 	$(SYS_LIB_DIR)/syscall/syscall.o \
 	$(SYS_LIB_DIR)/syscall/syscall_trigger.o \

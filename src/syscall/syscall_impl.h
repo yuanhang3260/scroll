@@ -15,6 +15,8 @@
 #define SYSCALL_PRINT_NUM         8
 #define SYSCALL_WAIT_NUM          9
 #define SYSCALL_THREAD_EXIT_NUM   10
+#define SYSCALL_READ_CHAR_NUM     11
+#define SYSCALL_MOVE_CURSOR_NUM   12
 
 
 int32 syscall_handler(isr_params_t isr_params);

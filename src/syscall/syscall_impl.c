@@ -6,6 +6,7 @@
 #include "task/thread.h"
 #include "fs/fs.h"
 #include "fs/file.h"
+#include "driver/keyboard.h"
 #include "task/process.h"
 #include "task/scheduler.h"
 #include "syscall/syscall_impl.h"
@@ -57,6 +58,15 @@ static int32 syscall_thread_exit_impl() {
   return 0;
 }
 
+static int32 syscall_read_char_impl() {
+  return read_keyboard_char();
+}
+
+static int32 syscall_move_cursor_impl(int32 delta_x, int32 delta_y) {
+  monitor_move_cursor(delta_x, delta_y);
+  return 0;
+}
+
 int32 syscall_handler(isr_params_t isr_params) {
   // syscall num saved in eax.
   // args list: ecx, edx, ebx, esi, edi
@@ -87,6 +97,10 @@ int32 syscall_handler(isr_params_t isr_params) {
       return syscall_wait_impl((uint32)isr_params.ecx, (uint32*)isr_params.edx);
     case SYSCALL_THREAD_EXIT_NUM:
       return syscall_thread_exit_impl();
+    case SYSCALL_READ_CHAR_NUM:
+      return syscall_read_char_impl();
+    case SYSCALL_MOVE_CURSOR_NUM:
+      return syscall_move_cursor_impl((int32)isr_params.ecx, (int32)isr_params.edx);
     default:
       PANIC();
   }

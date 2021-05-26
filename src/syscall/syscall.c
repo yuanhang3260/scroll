@@ -12,6 +12,9 @@ extern int32 trigger_syscall_listdir(char* dir);
 extern void trigger_syscall_print(char* str, void* args);
 extern int32 trigger_syscall_wait(uint32 pid, uint32* status);
 extern int32 trigger_syscall_thread_exit();
+extern int32 trigger_syscall_read_char();
+extern void trigger_syscall_move_cursor(int32 delta_x, int32 delta_y);
+
 
 void exit(int32 exit_code) {
   return trigger_syscall_exit(exit_code);
@@ -55,4 +58,12 @@ int32 wait(uint32 pid, uint32* status) {
 
 void thread_exit() {
   trigger_syscall_thread_exit();
+}
+
+int32 read_char() {
+  return trigger_syscall_read_char();
+}
+
+void move_cursor(int32 delta_x, int32 delta_y) {
+  trigger_syscall_move_cursor(delta_x, delta_y);
 }

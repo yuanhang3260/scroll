@@ -37,6 +37,8 @@ OBJS_C = \
 	$(OBJ_DIR)/fs/naive_fs.o \
 	$(OBJ_DIR)/elf/elf.o \
 	$(OBJ_DIR)/driver/hard_disk.o \
+	$(OBJ_DIR)/driver/keyboard.o \
+	$(OBJ_DIR)/driver/keyhelp.o \
 	$(OBJ_DIR)/utils/debug.o \
 	$(OBJ_DIR)/utils/bitmap.o \
 	$(OBJ_DIR)/utils/ordered_array.o \

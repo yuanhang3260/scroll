@@ -45,6 +45,15 @@ int32 strcmp(char* str1, char* str2) {
   return str2[i] == '\0' ? 0 : 1;
 }
 
+int32 strlen(char* str) {
+  int i = 0;
+  char c;
+  while ((c = str[i]) != '\0') {
+    i++;
+  }
+  return i;
+}
+
 int32 int2str(char* dst, int32 num) {
   uint32 start = 0;
   if (num < 0 ) {

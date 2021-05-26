@@ -13,14 +13,14 @@ int main(uint32 argc, char* argv[]) {
 
   file_stat_t file_stat;
   if (stat(path, &file_stat) != 0) {
-    printf("faile to find file %s\n", path);
+    printf("Could not find file \"%s\"\n", path);
     return -1;
   }
 
   uint32 size = file_stat.size;
   char read_buffer[size + 1];
   if (read(path, read_buffer, 0, size) != size) {
-    printf("faile to read file %s\n", path);
+    printf("Failed to read file \"%s\"\n", path);
     return -1;
   }
   read_buffer[size] = '\0';

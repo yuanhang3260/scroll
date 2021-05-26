@@ -1,26 +1,43 @@
 #include "common/io.h"
 #include "monitor/monitor.h"
+#include "utils/math.h"
 
 extern void* get_ebp();
 
 // The VGA framebuffer starts at 0xB8000.
 uint16* video_memory = (uint16*)0xC00B8000;
 // Stores the cursor position.
-uint8 cursor_x = 0;
-uint8 cursor_y = 0;
+int16 cursor_x = 0;
+int16 cursor_y = 0;
 
 // The background colour is black (0), the foreground is white (15).
 const uint8 backColour = COLOR_BLACK;
 const uint8 foreColour = COLOR_WHITE;
 
 // Updates the hardware cursor.
-static void move_cursor() {
+static void move_cursor_position() {
   // The screen is 80 characters wide.
   uint16 cursorLocation = cursor_y * 80 + cursor_x;
   outb(0x3D4, 14);                  // Tell the VGA board we are setting the high cursor byte.
   outb(0x3D5, cursorLocation >> 8); // Send the high cursor byte.
   outb(0x3D4, 15);                  // Tell the VGA board we are setting the low cursor byte.
   outb(0x3D5, cursorLocation);      // Send the low cursor byte.
+}
+
+void monitor_move_cursor(int32 delta_x, int32 delta_y) {
+  cursor_x += delta_x;
+  int32 y_offset = div(cursor_x, 80);
+  cursor_x = mod(cursor_x, 80);
+
+  cursor_y += (delta_y + y_offset);
+  if (cursor_y < 0) {
+    cursor_y = 0;
+  }
+  if (cursor_y >= 25) {
+    cursor_y = 24;
+  }
+
+  move_cursor_position();
 }
 
 // Scrolls the text on the screen up by one line.
@@ -66,7 +83,7 @@ void monitor_clear() {
   // Move the hardware cursor back to the start.
   cursor_x = 0;
   cursor_y = 0;
-  move_cursor();
+  move_cursor_position();
 }
 
 // Writes a single character out to the screen.
@@ -94,7 +111,7 @@ void monitor_write_char_with_color(char c, uint8 color) {
     // Handle newline by moving cursor back to left and increasing the row
     cursor_x = 0;
     cursor_y++;
-  } else if(c >= ' ') {
+  } else if (c >= ' ') {
     // Handle any other printable character.
     location = video_memory + (cursor_y * 80 + cursor_x);
     *location = (c | attribute);
@@ -111,7 +128,7 @@ void monitor_write_char_with_color(char c, uint8 color) {
   // Scroll the screen if needed.
   scroll();
   // Move the hardware cursor.
-  move_cursor();
+  move_cursor_position();
 }
 
 void monitor_write_string_with_color(char *c, uint8 color) {
@@ -222,6 +239,10 @@ void monitor_printf_args(char* str, void* arg_ptr) {
       } else if (next == 'x') {
         uint32 int_arg = *((uint32*)arg_ptr);
         monitor_write_hex_withc_color(int_arg, COLOR_WHITE);
+        arg_ptr += 4;
+      } else if (next == 'c') {
+        char char_arg = *((char*)arg_ptr);
+        monitor_write_char_with_color(char_arg, COLOR_WHITE);
         arg_ptr += 4;
       } else if (next == 's') {
         char* str_arg = *((char**)arg_ptr);

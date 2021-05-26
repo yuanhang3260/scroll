@@ -26,4 +26,8 @@ int32 wait(uint32 pid, uint32* status);
 
 void thread_exit();
 
+int32 read_char();
+
+void move_cursor(int32 delta_x, int32 delta_y);
+
 #endif

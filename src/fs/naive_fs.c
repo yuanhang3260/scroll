@@ -85,13 +85,13 @@ void init_naive_fs() {
   naive_fs.list_dir = naive_fs_list_dir;
 
   read_hard_disk((char*)&file_num, 0 + naive_fs.partition.offset, sizeof(uint32));
-  monitor_printf("naive fs found %d files:\n", file_num);
+  //monitor_printf("naive fs found %d files:\n", file_num);
 
   uint32 meta_size = file_num * sizeof(naive_file_meta_t);
   file_metas = (naive_file_meta_t*)kmalloc(meta_size);
   read_hard_disk((char*)file_metas, 4 + naive_fs.partition.offset, meta_size);
   for (int i = 0; i < file_num; i++) {
     naive_file_meta_t* meta = file_metas + i;
-    monitor_printf(" - %s, offset = %d, size = %d\n", meta->filename, meta->offset, meta->size);
+    //monitor_printf(" - %s, offset = %d, size = %d\n", meta->filename, meta->offset, meta->size);
   }
 }
