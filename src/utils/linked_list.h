@@ -38,6 +38,8 @@ void linked_list_remove_ele(linked_list_t* this, type_t ptr);
 
 // move all nodes from one linked list to another.
 void linked_list_move(linked_list_t* dst, linked_list_t* src);
+// concate a list after another.
+void linked_list_concate(linked_list_t* dst, linked_list_t* src);
 
 
 // ******************************** unit tests **********************************

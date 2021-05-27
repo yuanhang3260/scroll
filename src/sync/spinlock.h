@@ -15,6 +15,7 @@ typedef struct spinlock {
 // ****************************************************************************
 void spinlock_init(spinlock_t* splock);
 void spinlock_lock(spinlock_t* splock);
+bool spinlock_trylock(spinlock_t* splock);
 void spinlock_unlock(spinlock_t* splock);
 
 #endif

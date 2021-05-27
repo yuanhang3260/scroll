@@ -22,6 +22,8 @@
 #define COLOR_LIGHT_WHITE 15
 
 // clear the screen
+void monitor_init();
+
 void monitor_clear();
 
 // ********************** recommended print APIs **************************** //

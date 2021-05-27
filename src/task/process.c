@@ -177,7 +177,6 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   char* path_copy = (char*)kmalloc(strlen(path) + 1);
   strcpy(path_copy, path);
 
-
   // Release all user space pages of this process.
   // User virtual space is 4MB - 3G, totally 1024 * 3/4 - 1 = 767 page dir entries.
   release_pages(4 * 1024 * 1024, 767 * 1024);
@@ -185,8 +184,11 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   // Load elf binary.
   uint32 exec_entry;
   if (load_elf(read_buffer, &exec_entry)) {
-    monitor_printf("faile to load elf file %s\n", path);
-    return -1;
+    monitor_printf("faile to load elf file %s\n", path_copy);
+    kfree(read_buffer);
+    destroy_str_array(argc, args);
+    kfree(path_copy);
+    process_exit(-1);
   }
   //monitor_printf("entry = %x\n", exec_entry);
   kfree(read_buffer);

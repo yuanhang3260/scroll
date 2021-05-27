@@ -25,6 +25,6 @@ int main(uint32 argc, char* argv[]) {
   }
   read_buffer[size] = '\0';
 
-  printf("%s\n", read_buffer);
+  printf("%s", read_buffer);
   return 0;
 }

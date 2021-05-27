@@ -106,6 +106,22 @@ void linked_list_move(linked_list_t* dst, linked_list_t* src) {
   linked_list_init(src);
 }
 
+void linked_list_concate(linked_list_t* dst, linked_list_t* src) {
+  if (src->size == 0) {
+    return;
+  }
+
+  if (dst->size == 0) {
+    linked_list_move(dst, src);
+  } else {
+    dst->tail->next = src->head;
+    src->head->prev = dst->tail;
+    dst->tail = src->tail;
+    dst->size += src->size;
+    linked_list_init(src);
+  }
+}
+
 // ****************************************************************************
 void linked_list_test() {
   monitor_printf("linked_list test ... ");

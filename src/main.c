@@ -12,13 +12,19 @@
 #include "driver/keyboard.h"
 #include "utils/debug.h"
 
-char* welcome = "# welcome to scroll kernel #";
+char* welcome = " welcome to scroll kernel\n";
+
+static void print_welcome() {
+  monitor_print_with_color("#", COLOR_GREEN);
+  monitor_printf(welcome);
+}
 
 int main() {
   init_gdt();
 
+  monitor_init();
   monitor_clear();
-  monitor_println(welcome);
+  print_welcome();
 
   init_idt();
   enable_interrupt();

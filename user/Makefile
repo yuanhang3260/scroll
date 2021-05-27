@@ -27,6 +27,7 @@ PROGS = \
   ${BIN_DIR}/fork_bomb \
   ${BIN_DIR}/cat \
   ${BIN_DIR}/ls \
+  ${BIN_DIR}/echo \
 
 all: prepare image
 
@@ -34,10 +35,13 @@ prepare: ${SRC_DIR}/*
 	mkdir -p $(BIN_DIR)
 	mkdir -p $(LIB_DIR)
 
-image: progs
+image: progs greeting
 	./disk_image_writer
 
 progs: ${PROGS}
+
+greeting: greeting.txt
+	cp greeting.txt ./progs/
 
 $(BIN_DIR)/%: $(LIB_DIR)/%.o ${SYS_OBJS}
 	ld $(LDFLAGS) $< ${SYS_OBJS} -o $@

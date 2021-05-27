@@ -37,6 +37,8 @@ static spinlock_t threads_map_lock;
 
 // ready task queue
 static linked_list_t ready_tasks;
+static linked_list_t ready_tasks_candidates;
+static spinlock_t ready_tasks_candidates_lock;
 
 // dead task queue
 static linked_list_t dead_tasks;
@@ -55,13 +57,6 @@ thread_node_t* get_crt_thread_node() {
 
 bool is_kernel_main_thread() {
   return crt_thread_node == main_thread_node;
-}
-
-pcb_t* get_process(uint32 pid) {
-  spinlock_lock(&processes_map_lock);
-  pcb_t* process = hash_table_get(&processes_map, pid);
-  spinlock_unlock(&processes_map_lock);
-  return process;
 }
 
 static void destroy_thread(thread_node_t* thread_node);
@@ -89,17 +84,17 @@ static void kernel_main_thread(char* argv[]) {
 }
 
 static void ancestor_user_thread() {
-  monitor_println("start ancestor user thread ...");
+  //monitor_println("start ancestor user thread ...");
 
   int32 pid = fork();
   if (pid < 0) {
     monitor_println("fork failed");
   } else if (pid > 0) {
     // parent: thread-2
-    monitor_printf("created child process %d\n", pid);
+    //monitor_printf("created child process %d\n", pid);
     uint32 status;
     wait(pid, &status);
-    monitor_printf("child process exit with code %d\n", status);
+    //monitor_printf("child process exit with code %d\n", status);
   } else {
     // child: thread-3
     //printf("child process start ok\n");
@@ -111,7 +106,7 @@ static void ancestor_user_thread() {
 }
 
 static void ancestor_kernel_thread(char* argv[]) {
-  monitor_println("start ancestor kernel thread ...");
+  //monitor_println("start ancestor kernel thread ...");
 
   // thread-2
   pcb_t* crt_process = get_crt_thread()->process;
@@ -125,8 +120,10 @@ static void ancestor_kernel_thread(char* argv[]) {
 }
 
 void init_scheduler() {
-  // Init task queues.
   linked_list_init(&ready_tasks);
+  linked_list_init(&ready_tasks_candidates);
+  spinlock_init(&ready_tasks_candidates_lock);
+
   linked_list_init(&dead_tasks);
 
   hash_table_init(&processes_map);
@@ -172,6 +169,15 @@ static void process_switch(pcb_t* process) {
   reload_page_directory(&process->page_dir);
 }
 
+static void merge_ready_tasks() {
+  if (!spinlock_trylock(&ready_tasks_candidates_lock)) {
+    return;
+  }
+
+  linked_list_concate(&ready_tasks, &ready_tasks_candidates);
+  spinlock_unlock(&ready_tasks_candidates_lock);
+}
+
 // Note: interrupt must be DISABLED before entering this function.
 static void do_context_switch() {
   //monitor_printf("ready_tasks num = %d\n", ready_tasks.size);
@@ -212,6 +218,8 @@ static void do_context_switch() {
 
 void maybe_context_switch() {
   disable_interrupt();
+  merge_ready_tasks();
+
   uint32 need_context_switch = 0;
   if (ready_tasks.size > 0) {
     tcb_t* crt_thread = get_crt_thread();
@@ -239,23 +247,24 @@ void add_thread_to_schedule(tcb_t* thread) {
 }
 
 void add_thread_node_to_schedule(thread_node_t* thread_node) {
-  disable_interrupt();
+  spinlock_lock(&ready_tasks_candidates_lock);
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   thread->status = TASK_READY;
-  linked_list_append(&ready_tasks, thread_node);
-  enable_interrupt();
+  linked_list_append(&ready_tasks_candidates, thread_node);
+  spinlock_unlock(&ready_tasks_candidates_lock);
 }
 
 void add_thread_node_to_schedule_head(thread_node_t* thread_node) {
-  disable_interrupt();
+  spinlock_lock(&ready_tasks_candidates_lock);
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   thread->status = TASK_READY;
-  linked_list_insert_to_head(&ready_tasks, thread_node);
-  enable_interrupt();
+  linked_list_insert_to_head(&ready_tasks_candidates, thread_node);
+  spinlock_unlock(&ready_tasks_candidates_lock);
 }
 
 void schedule_thread_yield() {
   disable_interrupt();
+  merge_ready_tasks();
   if (ready_tasks.size > 0) {
     //monitor_printf("thread %d yield\n", get_crt_thread()->id);
     do_context_switch();
@@ -269,6 +278,7 @@ void schedule_thread_block() {
   thread->status = TASK_WAITING;
 
   disable_interrupt();
+  merge_ready_tasks();
   if (ready_tasks.size == 0) {
     linked_list_append(&ready_tasks, main_thread_node);
     main_thread_in_ready_queue = 1;
@@ -284,6 +294,7 @@ void schedule_thread_exit() {
 
   // Mark this thread TASK_dead.
   disable_interrupt();
+  merge_ready_tasks();
   thread->status = TASK_DEAD;
   do_context_switch();
 }

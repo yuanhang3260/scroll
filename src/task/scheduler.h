@@ -13,9 +13,6 @@ thread_node_t* get_crt_thread_node();
 // If current running thread is kernel main thread.
 bool is_kernel_main_thread();
 
-// Get process by id.
-pcb_t* get_process(uint32 pid);
-
 // Add thread to ready task queue and wait for schedule.
 void add_thread_to_schedule(struct task_struct* thread);
 void add_thread_node_to_schedule(thread_node_t* thread_node);

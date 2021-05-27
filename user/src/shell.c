@@ -12,9 +12,8 @@ int32 cmd_end_index = 0;
 
 int32 line_cursor_index = 3;
 
-char* split_line = "\n------------------------------------------------------------------------------";
-
-// ****************************************************************************
+char* blank_line =
+    "                                                                                ";
 
 static void print_shell() {
   printf(">> ");
@@ -22,9 +21,6 @@ static void print_shell() {
 
 static void run_program() {
   printf("\n");
-  if (cmd_end_index == 0) {
-    return;
-  }
 
   char program[128];
   char arg_buffer[32 * 128];
@@ -81,15 +77,11 @@ static void run_program() {
     // parent
     int32 status;
     wait(pid, &status);
-    //printf("child process exit with code %d\n", status);
+    //printf("child process %d exit with code %d\n", pid, status);
   } else {
     // child
     exec(program, args_index, (char**)args);
   }
-
-  //printf(split_line);
-  cmd_end_index = 0;
-  line_cursor_index = 3;
 }
 
 static int32 run_shell() {
@@ -97,6 +89,8 @@ static int32 run_shell() {
   cmd_buffer[cmd_end_index] = '\0';
 
   while (1) {
+    cmd_end_index = 0;
+    line_cursor_index = 3;
     print_shell();
 
     while (1) {
@@ -118,7 +112,21 @@ static int32 run_shell() {
           printf(" ");
           move_cursor(-(cmd_end_index + 1 - (line_cursor_index - 3)), 0);
         } else if (c == '\n') {
-          run_program();
+          if (cmd_end_index == 0) {
+            printf("\n");
+            break;
+          } else if (strcmp("exit", cmd_buffer) == 0) {
+            printf("\n");
+            return 0;
+          } else if (strcmp("clear", cmd_buffer) == 0) {
+            move_cursor(0, -25);
+            for (int i = 0; i < 25; i++) {
+              printf(blank_line);
+            }
+            move_cursor(0, -25);
+          } else {
+            run_program();
+          }
           break;
         } else {
           for (int32 i = cmd_end_index - 1; i >= (line_cursor_index - 3); i--) {

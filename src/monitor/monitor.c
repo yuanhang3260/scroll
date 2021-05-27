@@ -1,8 +1,11 @@
 #include "common/io.h"
 #include "monitor/monitor.h"
 #include "utils/math.h"
+#include "sync/spinlock.h"
 
 extern void* get_ebp();
+
+static spinlock_t monitor_lock;
 
 // The VGA framebuffer starts at 0xB8000.
 uint16* video_memory = (uint16*)0xC00B8000;
@@ -13,6 +16,10 @@ int16 cursor_y = 0;
 // The background colour is black (0), the foreground is white (15).
 const uint8 backColour = COLOR_BLACK;
 const uint8 foreColour = COLOR_WHITE;
+
+void monitor_init() {
+  spinlock_init(&monitor_lock);
+}
 
 // Updates the hardware cursor.
 static void move_cursor_position() {
@@ -25,19 +32,25 @@ static void move_cursor_position() {
 }
 
 void monitor_move_cursor(int32 delta_x, int32 delta_y) {
+  spinlock_lock(&monitor_lock);
+
   cursor_x += delta_x;
   int32 y_offset = div(cursor_x, 80);
   cursor_x = mod(cursor_x, 80);
 
   cursor_y += (delta_y + y_offset);
   if (cursor_y < 0) {
+    cursor_x = 0;
     cursor_y = 0;
   }
   if (cursor_y >= 25) {
     cursor_y = 24;
+    cursor_x = 79;
   }
 
   move_cursor_position();
+
+  spinlock_unlock(&monitor_lock);
 }
 
 // Scrolls the text on the screen up by one line.
@@ -69,6 +82,8 @@ static void scroll() {
 
 // Clears the screen, by copying lots of spaces to the framebuffer.
 void monitor_clear() {
+  spinlock_lock(&monitor_lock);
+
   // The attribute byte is made up of two nibbles - the lower being the 
   // foreground colour, and the upper the background colour.
   const uint8 attributeByte = ((backColour << 4) | (foreColour & 0x0F));
@@ -84,6 +99,8 @@ void monitor_clear() {
   cursor_x = 0;
   cursor_y = 0;
   move_cursor_position();
+
+  spinlock_unlock(&monitor_lock);
 }
 
 // Writes a single character out to the screen.
@@ -199,12 +216,16 @@ void monitor_write_dec_with_color(int32 n, uint8 color) {
 
 
 void monitor_print(char* str) {
-  monitor_print_with_color(str, COLOR_WHITE);
+  spinlock_lock(&monitor_lock);
+  monitor_write_string_with_color(str, COLOR_WHITE);
+  spinlock_unlock(&monitor_lock);
 }
 
 void monitor_println(char* str) {
-  monitor_print_with_color(str, COLOR_WHITE);
-  monitor_print_with_color("\n", COLOR_WHITE);
+  spinlock_lock(&monitor_lock);
+  monitor_write_string_with_color(str, COLOR_WHITE);
+  monitor_write_string_with_color("\n", COLOR_WHITE);
+  spinlock_unlock(&monitor_lock);
 }
 
 void monitor_printf(char* str, ...) {
@@ -214,6 +235,7 @@ void monitor_printf(char* str, ...) {
 }
 
 void monitor_printf_args(char* str, void* arg_ptr) {
+  spinlock_lock(&monitor_lock);
   int i = 0;
   while (1) {
     char c = str[i];
@@ -255,8 +277,11 @@ void monitor_printf_args(char* str, void* arg_ptr) {
 
     i++;
   }
+  spinlock_unlock(&monitor_lock);
 }
 
 void monitor_print_with_color(char* str, uint8 color) {
+  spinlock_lock(&monitor_lock);
   monitor_write_string_with_color(str, color);
+  spinlock_unlock(&monitor_lock);
 }
