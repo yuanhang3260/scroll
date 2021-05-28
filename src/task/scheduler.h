@@ -24,8 +24,8 @@ void maybe_context_switch();
 // Yield thread - give up cpu and move current thread to ready queue tail.
 void schedule_thread_yield();
 
-// Block thread - give up cpu and mark current thread WAITING.
-void schedule_thread_block();
+// Mark current thread WAITING.
+void schedule_mark_thread_block();
 
 void schedule_thread_exit();
 void schedule_thread_exit_normal();

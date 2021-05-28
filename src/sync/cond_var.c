@@ -13,8 +13,9 @@ void cond_var_wait(cond_var_t* cv, spinlock_t* lock, cv_predicator_func predicat
     // Add current thread to wait queue.
     thread_node_t* thread_node = get_crt_thread_node();
     linked_list_append(&cv->waiting_task_queue, thread_node);
+    schedule_mark_thread_block();
     spinlock_unlock(lock);
-    schedule_thread_block();
+    schedule_thread_yield();
 
     // Waken up, and test condition predicator again.
     spinlock_lock(lock);

@@ -23,7 +23,7 @@ struct process_struct {
   uint32 id;
   char name[32];
 
-  uint32 parent_pid;
+  struct process_struct* parent;
 
   enum process_status status;
 
@@ -45,8 +45,11 @@ struct process_struct {
   // exit children processes
   hash_table_t exit_children_processes;
 
-  // waiting parent thread
-  struct linked_list_node* waiting_parent;
+  // child pid that is waiting
+  uint32 waiting_child_pid;
+
+  // waiting thread
+  struct linked_list_node* waiting_thread_node;
 
   // page directory
   page_directory_t page_dir;

@@ -11,6 +11,7 @@
 #include "driver/hard_disk.h"
 #include "driver/keyboard.h"
 #include "utils/debug.h"
+#include "utils/hash_table.h"
 
 char* welcome = " welcome to scroll kernel\n";
 

@@ -153,6 +153,7 @@ uint32 prepare_user_stack(
   // Set thread return address.
   stack_top -= 4;
   *((uint32*)stack_top) = return_addr;
+  //monitor_printf("%x return_addr = %x\n", stack_top, return_addr);
 
   interrupt_stack_t* interrupt_stack =
       (interrupt_stack_t*)((uint32)thread->self_kstack + sizeof(switch_stack_t));

@@ -83,37 +83,19 @@ static void kernel_main_thread(char* argv[]) {
   }
 }
 
-static void ancestor_user_thread() {
-  //monitor_println("start ancestor user thread ...");
-
-  int32 pid = fork();
-  if (pid < 0) {
-    monitor_println("fork failed");
-  } else if (pid > 0) {
-    // parent: thread-2
-    //monitor_printf("created child process %d\n", pid);
-    uint32 status;
-    wait(pid, &status);
-    //monitor_printf("child process exit with code %d\n", status);
-  } else {
-    // child: thread-3
-    //printf("child process start ok\n");
-
-    // thread-4
-    char* prog = "shell";
-    exec(prog, 0, nullptr);
-  }
+static void init_user_thread() {
+  // thread-2
+  //monitor_println("start system init process ...");
+  exec("init", 0, nullptr);
 }
 
-static void ancestor_kernel_thread(char* argv[]) {
-  //monitor_println("start ancestor kernel thread ...");
+static void init_kernel_thread(char* argv[]) {
+  //monitor_println("start init process ...");
 
-  // thread-2
   pcb_t* crt_process = get_crt_thread()->process;
-  tcb_t* thread = create_new_user_thread(crt_process, nullptr, ancestor_user_thread, 0, nullptr);
+  tcb_t* thread = create_new_user_thread(crt_process, nullptr, init_user_thread, 0, nullptr);
 
   // Change this process to user process, so that ancestor_user_thread will switch to user mode.
-  // See kernel_thread implementation.
   crt_process->is_kernel_process = false;
 
   add_thread_to_schedule(thread);
@@ -135,18 +117,16 @@ void init_scheduler() {
   hash_table_init(&threads_map);
   spinlock_init(&threads_map_lock);
 
-  // Create process 0: kernel main
+  // Create process 0: kernel main process (cpu idle)
   main_process = create_process("kernel_main_process", /* is_kernel_process = */true);
   tcb_t* main_thread = create_new_kernel_thread(main_process, nullptr, kernel_main_thread, nullptr);
   main_thread_node = (thread_node_t*)kmalloc(sizeof(thread_node_t));
   main_thread_node->ptr = main_thread;
   crt_thread_node = main_thread_node;
-  hash_table_put(&processes_map, main_process->id, main_process);
 
-  // Create process 1: ancestor process
+  // Create process 1: init process
   pcb_t* process = create_process(nullptr, /* is_kernel_process = */true);
-  tcb_t* thread = create_new_kernel_thread(process, nullptr, ancestor_kernel_thread, nullptr);
-  hash_table_put(&processes_map, process->id, process);
+  tcb_t* thread = create_new_kernel_thread(process, nullptr, init_kernel_thread, nullptr);
   add_thread_to_schedule(thread);
 
   // Start the main thread.
@@ -265,25 +245,25 @@ void add_thread_node_to_schedule_head(thread_node_t* thread_node) {
 void schedule_thread_yield() {
   disable_interrupt();
   merge_ready_tasks();
-  if (ready_tasks.size > 0) {
-    //monitor_printf("thread %d yield\n", get_crt_thread()->id);
-    do_context_switch();
-  } else {
-    enable_interrupt();
-  }
-}
 
-void schedule_thread_block() {
-  tcb_t* thread = (tcb_t*)crt_thread_node->ptr;
-  thread->status = TASK_WAITING;
+  //monitor_printf("thread %d yield\n", get_crt_thread()->id);
 
   disable_interrupt();
   merge_ready_tasks();
-  if (ready_tasks.size == 0) {
+
+  if (ready_tasks.size == 0 && crt_thread_node != main_thread_node) {
     linked_list_append(&ready_tasks, main_thread_node);
     main_thread_in_ready_queue = 1;
   }
-  do_context_switch();
+
+  if (ready_tasks.size > 0) {
+    do_context_switch();
+  }
+}
+
+void schedule_mark_thread_block() {
+  tcb_t* thread = (tcb_t*)crt_thread_node->ptr;
+  thread->status = TASK_WAITING;
 }
 
 void schedule_thread_exit() {
@@ -300,6 +280,9 @@ void schedule_thread_exit() {
 }
 
 void schedule_thread_exit_normal() {
+  //tcb_t* thread = get_crt_thread();
+  //pcb_t* process = thread->process;
+  //monitor_printf("process %d thread %d exit\n", process->id, thread->id);
   thread_exit();
 }
 

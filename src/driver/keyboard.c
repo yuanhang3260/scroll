@@ -72,9 +72,10 @@ int32 read_keyboard_char() {
     }
     //monitor_printf("keyboard waiting thread %u\n", get_crt_thread()->id);
     linked_list_append(&waiting_tasks, get_crt_thread_node());
+    schedule_mark_thread_block();
     spinlock_unlock(&keyboard_lock);
+    schedule_thread_yield();
 
-    schedule_thread_block();
     spinlock_lock(&keyboard_lock);
   }
   spinlock_unlock(&keyboard_lock);

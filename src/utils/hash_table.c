@@ -24,7 +24,7 @@ void hash_table_init(hash_table_t* this) {
 }
 
 void hash_table_destroy(hash_table_t* this) {
-  for (uint32 i = 0; i < this->buckets_num; i++) {
+  for (int32 i = 0; i < this->buckets_num; i++) {
     linked_list_t* bucket = &this->buckets[i];
     linked_list_node_t* kv_node = bucket->head;
     while (kv_node != nullptr) {
@@ -97,12 +97,12 @@ void* hash_table_put(hash_table_t* this, uint32 key, void* v_ptr) {
 static void hash_table_expand(hash_table_t* this) {
   uint32 new_buckets_num = this->buckets_num * 2;
   linked_list_t* new_buckets = (linked_list_t*)kmalloc(new_buckets_num * sizeof(linked_list_t));
-  for (uint32 i = 0; i < new_buckets_num; i++) {
+  for (int32 i = 0; i < new_buckets_num; i++) {
     linked_list_init(&new_buckets[i]);
   }
 
   // Place kv nodes into new buckets
-  for (uint32 i = 0; i < this->buckets_num; i++) {
+  for (int32 i = 0; i < this->buckets_num; i++) {
     linked_list_t* bucket = &this->buckets[i];
     linked_list_node_t* kv_node = bucket->head;
     while (kv_node != nullptr) {
@@ -154,6 +154,49 @@ void hash_table_print(hash_table_t* this) {
   monitor_printf("*********************************************\n");
 }
 
+hash_table_interator_t hash_table_create_iterator(hash_table_t* map) {
+  hash_table_interator_t iter;
+  iter.map = map;
+  iter.bucket_index = -1;
+  iter.node = nullptr;
+  iter.index = -1;
+  return iter;
+}
+
+bool hash_table_iterator_has_next(hash_table_interator_t* iter) {
+  return iter->index < (int32)iter->map->size - 1;
+}
+
+hash_table_kv_t* hash_table_iterator_next(hash_table_interator_t* iter) {
+  if (iter->index >= iter->map->size - 1) {
+    iter->index = iter->map->size;
+    iter->bucket_index = iter->map->buckets_num;
+    iter->node = nullptr;
+    return nullptr;
+  }
+
+  if (iter->node != nullptr && iter->node->next != nullptr) {
+    iter->node = iter->node->next;
+    iter->index++;
+    return (hash_table_kv_t*)iter->node->ptr;
+  }
+
+  iter->bucket_index++;
+  while (iter->bucket_index < iter->map->buckets_num) {
+    linked_list_t* bucket = &iter->map->buckets[iter->bucket_index];
+    linked_list_node_t* head = bucket->head;
+    if (head != nullptr) {
+      iter->node = head;
+      iter->index++;
+      return (hash_table_kv_t*)iter->node->ptr;
+    }
+    iter->bucket_index++;
+  }
+
+  iter->node = nullptr;
+  iter->index++;
+}
+
 
 // ****************************** unit test ***********************************
 void hash_table_test() {
@@ -192,6 +235,27 @@ void hash_table_test() {
   ASSERT(*((uint32*)hash_table_get(&map, 3)) == *v3);
   ASSERT(*v3_x == 29);
   kfree(v3_x);
+
+  // Test iterator
+  hash_table_interator_t iter = hash_table_create_iterator(&map);
+  ASSERT(iter.index == -1);
+  int32 iter_total_num = 0;
+  int32 key = 1;
+  while (hash_table_iterator_has_next(&iter)) {
+    hash_table_kv_t* kv_node = hash_table_iterator_next(&iter);
+    ASSERT(kv_node->key == key);
+    ASSERT(*(uint32*)kv_node->v_ptr == key * 10);
+    iter_total_num++;
+    key++;
+  }
+  monitor_printf("num = %d\n", iter_total_num);
+  ASSERT(iter_total_num == 3);
+  ASSERT(iter.index == 2);
+
+  hash_table_kv_t* kv_node = hash_table_iterator_next(&iter);
+  ASSERT(kv_node == nullptr);
+  ASSERT(iter.node == nullptr);
+  ASSERT(iter.index == 3);
 
   // Remove (2, 20)
   v2 = (uint32*)hash_table_remove(&map, 2);

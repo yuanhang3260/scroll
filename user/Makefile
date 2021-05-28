@@ -22,6 +22,7 @@ SYS_OBJS = \
 	$(LIB_DIR)/sys/common.o
 
 PROGS = \
+  ${BIN_DIR}/init \
   ${BIN_DIR}/hello \
   ${BIN_DIR}/shell \
   ${BIN_DIR}/fork_bomb \
