@@ -181,9 +181,5 @@ tcb_t* fork_crt_thread() {
   kthread_stack->eip = kernel_thread;
   kthread_stack->tcb = thread;
 
-  // Init interrupt stack: set eax = 0 as the return value of fork() in child process.
-  interrupt_stack_t* interrupt_stack =
-      (interrupt_stack_t*)((uint32)thread->self_kstack + sizeof(switch_stack_t));
-
   return thread;
 }

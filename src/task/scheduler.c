@@ -84,7 +84,6 @@ static void kernel_main_thread(char* argv[]) {
 }
 
 static void init_user_thread() {
-  // thread-2
   //monitor_println("start system init process ...");
   exec("init", 0, nullptr);
 }
@@ -92,13 +91,16 @@ static void init_user_thread() {
 static void init_kernel_thread(char* argv[]) {
   //monitor_println("start init process ...");
 
+  // Change this process to user process.
   pcb_t* crt_process = get_crt_thread()->process;
-  tcb_t* thread = create_new_user_thread(crt_process, nullptr, init_user_thread, 0, nullptr);
-
-  // Change this process to user process, so that ancestor_user_thread will switch to user mode.
   crt_process->is_kernel_process = false;
 
-  add_thread_to_schedule(thread);
+  //tcb_t* thread = create_new_user_thread(crt_process, nullptr, init_user_thread, 0, nullptr);
+  //add_thread_to_schedule(thread);
+
+  // Start init process.
+  // thread-2
+  process_exec("init", 0, nullptr);
 }
 
 void init_scheduler() {

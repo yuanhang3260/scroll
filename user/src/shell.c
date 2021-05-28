@@ -19,7 +19,7 @@ static void print_shell() {
   printf(">> ");
 }
 
-static void run_program() {
+static int32 run_program() {
   printf("\n");
 
   char program[128];
@@ -80,7 +80,8 @@ static void run_program() {
     //printf("child process %d exit with code %d\n", pid, status);
   } else {
     // child
-    exec(program, args_index, (char**)args);
+    int32 ret = exec(program, args_index, (char**)args);
+    exit(ret);
   }
 }
 
