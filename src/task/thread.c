@@ -7,7 +7,9 @@
 #include "mem/gdt.h"
 #include "common/stdlib.h"
 
-extern uint32 get_esp();
+extern uint32 get_ebp();
+
+extern void thread_fork_child_exit();
 
 static uint32 next_thread_id = 0;
 
@@ -18,19 +20,10 @@ static void kernel_thread(thread_func* function, char** func_arg, tcb_t* thread)
     schedule_thread_exit(0);
   } else {
     uint32 interrupt_stack = (uint32)thread->self_kstack + sizeof(switch_stack_t);
-    if (thread->syscall_ret) {
-      // Exit from syscall - only for child process to return from fork() and exec().
-      thread->syscall_ret = false;
-      asm volatile (
-       "movl $0, %%eax; \
-        movl %0, %%esp; \
-        jmp syscall_exit" : : "g" (interrupt_stack) : "memory");
-    } else {
-      // User thread start - switch to user space.
-      asm volatile (
-       "movl %0, %%esp; \
-        jmp interrupt_exit" : : "g" (interrupt_stack) : "memory");
-    }
+    // User thread start - switch to user space.
+    asm volatile (
+     "movl %0, %%esp; \
+      jmp interrupt_exit" : : "g" (interrupt_stack) : "memory");
   }
 }
 
@@ -162,6 +155,9 @@ uint32 prepare_user_stack(
 }
 
 tcb_t* fork_crt_thread() {
+  uint32 ebp = get_ebp();
+  tcb_t* crt_thread = get_crt_thread();
+
   tcb_t* thread = (tcb_t*)kmalloc_aligned(KERNEL_STACK_SIZE);
   memcpy(thread, get_crt_thread(), KERNEL_STACK_SIZE);
 
@@ -172,14 +168,14 @@ tcb_t* fork_crt_thread() {
 
   thread->ticks = 0;
 
-  // Init switch stack: the copied thread starts running from kernel_thread and
-  // then switch back to user mode.
-  thread->self_kstack =
-      (void*)thread + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
-  switch_stack_t* kthread_stack = (switch_stack_t*)thread->self_kstack;
+  thread->self_kstack = (void*)(ebp + 8 - (uint32)get_crt_thread + (uint32)thread - sizeof(switch_stack_t));
+  monitor_printf("self_kstack ret = %x\n", *(uint32*)(ebp + 8 + 24));
+  monitor_printf("fork self_kstack ret = %x\n", *(uint32*)(thread->self_kstack + sizeof(switch_stack_t) + 24));
+  switch_stack_t* switch_stack = (switch_stack_t*)thread->self_kstack;
+  switch_stack->eax = 0;
 
-  kthread_stack->eip = kernel_thread;
-  kthread_stack->tcb = thread;
+  switch_stack->eip = thread_fork_child_exit;
+  switch_stack->tcb = thread;
 
   return thread;
 }

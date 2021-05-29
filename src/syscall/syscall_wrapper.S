@@ -53,3 +53,41 @@ syscall_exit:
 
   ; pop cs, eip, eflags, user_ss, and user_esp by processor
   iret
+
+;************************************ thread fork wrapper ******************************************
+[GLOBAL thread_fork_wrapper]
+[GLOBAL thread_fork_child_exit]
+
+[EXTERN fork_crt_thread]
+
+thread_fork_wrapper:
+  push ecx
+  push edx
+  push ebx
+  push ebp
+  push esi
+  push edi
+
+  call fork_crt_thread
+
+thread_fork_exit:
+  pop edi
+  pop esi
+  pop ebp
+  pop ebx
+  pop edx
+  pop ecx
+
+  ret
+
+thread_fork_child_exit:
+  add esp, 16
+
+  pop  edi
+  pop  esi
+  pop  ebp
+  pop  ebx
+  pop  edx
+  pop  ecx
+
+  ret

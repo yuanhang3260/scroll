@@ -47,8 +47,6 @@ struct task_struct {
   // user stack
   uint32 user_stack;
   int32 user_stack_index;
-  // syscall mark
-  bool syscall_ret;
   // boundary of tcb_t and thread stack.
   uint32 stack_magic;
 };

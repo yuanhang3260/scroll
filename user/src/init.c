@@ -11,7 +11,7 @@ int main(uint32 argc, char* argv[]) {
     printf("fork failed\n");
   } else if (pid > 0) {
     // parent: thread-2
-    //printf("created child process %d\n", pid);
+    printf("created child process %d\n", pid);
     uint32 status;
     wait(pid, &status);
     //printf("child process exit with code %d\n", status);
@@ -20,7 +20,7 @@ int main(uint32 argc, char* argv[]) {
     while (1) {}
   } else {
     // child: thread-3
-    //printf("child process start ok\n");
+    printf("child process start ok\n");
 
     // thread-4
     char* prog = "shell";

@@ -14,8 +14,7 @@
 
 static uint32 next_pid = 0;
 
-// TODO: remove it
-extern page_directory_t* current_page_directory;
+extern tcb_t* thread_fork_wrapper();
 
 // ****************************************************************************
 pcb_t* create_process(char* name, uint8 is_kernel_process) {
@@ -116,6 +115,13 @@ void add_child_process(pcb_t* parent, pcb_t* child) {
 }
 
 int32 process_fork() {
+  // Copy current thread and prepare for its kernel and user stacks.
+  tcb_t* thread = thread_fork_wrapper();
+  if (thread == nullptr) {
+    // child thread.
+    return 0;
+  }
+
   // Create a new process, with page directory cloned from this process.
   pcb_t* process = create_process(nullptr, /* is_kernel_process = */false);
   add_new_process(process);
@@ -123,10 +129,6 @@ int32 process_fork() {
   pcb_t* parent_process = get_crt_thread()->process;
   process->parent = parent_process;
   add_child_process(parent_process, process);
-
-  // Copy current thread and prepare for its kernel and user stacks.
-  tcb_t* thread = fork_crt_thread();
-  thread->syscall_ret = true;
 
   // Add new thread to new process.
   add_process_thread(process, thread);
