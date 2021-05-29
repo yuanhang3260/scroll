@@ -119,6 +119,7 @@ int32 process_fork() {
   tcb_t* thread = thread_fork_wrapper();
   if (thread == nullptr) {
     // child thread.
+    monitor_printf("debug1\n");
     return 0;
   }
 

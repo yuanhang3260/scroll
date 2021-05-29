@@ -168,9 +168,7 @@ tcb_t* fork_crt_thread() {
 
   thread->ticks = 0;
 
-  thread->self_kstack = (void*)(ebp + 8 - (uint32)get_crt_thread + (uint32)thread - sizeof(switch_stack_t));
-  monitor_printf("self_kstack ret = %x\n", *(uint32*)(ebp + 8 + 24));
-  monitor_printf("fork self_kstack ret = %x\n", *(uint32*)(thread->self_kstack + sizeof(switch_stack_t) + 24));
+  thread->self_kstack = (void*)(ebp + 8 - (uint32)crt_thread + (uint32)thread - sizeof(switch_stack_t));
   switch_stack_t* switch_stack = (switch_stack_t*)thread->self_kstack;
   switch_stack->eax = 0;
 
