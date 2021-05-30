@@ -63,8 +63,7 @@ typedef struct process_struct pcb_t;
 // ****************************************************************************
 struct process_struct* create_process(char* name, uint8 is_kernel_process);
 
-struct task_struct* create_new_kernel_thread(
-    pcb_t* process, char* name, void* function, char** argv);
+struct task_struct* create_new_kernel_thread(pcb_t* process, char* name, void* function);
 struct task_struct* create_new_user_thread(
     pcb_t* process, char* name, void* user_function, uint32 argc, char** argv);
 

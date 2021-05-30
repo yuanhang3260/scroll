@@ -102,6 +102,7 @@ static void keyboard_interrupt_handler() {
     linked_list_remove(&waiting_tasks_get, node);
     //monitor_printf("wake up keyboard waiting thread %u\n", ((tcb_t*)node->ptr)->id);
     add_thread_node_to_schedule_head(node);
+    //break;
     node = prev_node;
   }
 

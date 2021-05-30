@@ -9,27 +9,31 @@
 #include "mem/kheap.h"
 #include "mem/paging.h"
 #include "sync/spinlock.h"
-#include "sync/mutex.h"
+#include "sync/cond_var.h"
 #include "utils/linked_list.h"
 #include "utils/hash_table.h"
 #include "utils/debug.h"
 
 extern void cpu_idle();
-extern int32 get_eax();
 extern void context_switch(tcb_t* crt, tcb_t* next);
+extern void resume_thread();
 
 // ****************************************************************************
 static pcb_t* main_process;
 static thread_node_t* main_thread_node;
+static thread_node_t* kernel_clean_node;
+
 static thread_node_t* crt_thread_node;
 
 // processes map
 static hash_table_t processes_map;
 static spinlock_t processes_map_lock;
 
-// dead processes waiting for clean
+// dead tasks and processes waiting for clean
+static linked_list_t dead_tasks;
 static linked_list_t dead_processes;
-static spinlock_t dead_processes_lock;
+static spinlock_t dead_resource_lock;
+static cond_var_t dead_resource_cv;
 
 // threads map
 static hash_table_t threads_map;
@@ -40,13 +44,134 @@ static linked_list_t ready_tasks;
 static linked_list_t ready_tasks_candidates;
 static spinlock_t ready_tasks_candidates_lock;
 
-// dead task queue
-static linked_list_t dead_tasks;
-
 static bool main_thread_in_ready_queue = false;
 
 
-// ****************************************************************************
+// *************************************************************************************************
+static void destroy_thread(thread_node_t* thread_node);
+static void kernel_main_thread();
+static void kernel_clean_thread();
+static void kernel_init_thread();
+
+static bool has_dead_resource();
+
+void init_scheduler() {
+  disable_interrupt();
+
+  linked_list_init(&ready_tasks);
+  linked_list_init(&ready_tasks_candidates);
+  spinlock_init(&ready_tasks_candidates_lock);
+
+  hash_table_init(&processes_map);
+  spinlock_init(&processes_map_lock);
+
+  hash_table_init(&threads_map);
+  spinlock_init(&threads_map_lock);
+
+  linked_list_init(&dead_tasks);
+  linked_list_init(&dead_processes);
+  spinlock_init(&dead_resource_lock);
+  cond_var_init(&dead_resource_cv);
+
+  // Create process 0: kernel main process (cpu idle)
+  main_process = create_process("kernel_main_process", /* is_kernel_process = */true);
+  tcb_t* main_thread = create_new_kernel_thread(main_process, "kernel main", kernel_main_thread);
+  main_thread_node = (thread_node_t*)kmalloc(sizeof(thread_node_t));
+  main_thread_node->ptr = main_thread;
+  crt_thread_node = main_thread_node;
+
+  // Kick off!
+  asm volatile (
+   "movl %0, %%esp; \
+    jmp resume_thread": : "g" (main_thread->self_kstack) : "memory");
+
+  // Never should reach here!
+  PANIC();
+}
+
+// Kernel main thread:
+//  - Create the resource clean thread;
+//  - Create process 1 (init process) which will later become the first user process;
+//  - Becomes the cpu idle thread;
+static void kernel_main_thread() {
+  // Create kernel clean thread.
+  tcb_t* clean_thread = create_new_kernel_thread(main_process, "kernel clean", kernel_clean_thread);
+  kernel_clean_node = (thread_node_t*)kmalloc(sizeof(thread_node_t));
+  kernel_clean_node->ptr = clean_thread;
+  add_thread_node_to_schedule(kernel_clean_node);
+
+  // Create process 1: init process.
+  pcb_t* init_process = create_process(nullptr, /* is_kernel_process = */true);
+  tcb_t* init_thread = create_new_kernel_thread(init_process, "kernel init", kernel_init_thread);
+  add_thread_to_schedule(init_thread);
+
+  // Enable interrupt: multi tasks start running after this line.
+  enable_interrupt();
+
+  // Enter cpu idle.
+  while (1) {
+    cpu_idle();
+  }
+}
+
+static void kernel_clean_thread() {
+  // thread-1
+  while (1) {
+    // Wait for dead resource to clean.
+    cond_var_wait(&dead_resource_cv, &dead_resource_lock, has_dead_resource);
+    linked_list_t dead_tasks_receiver;
+    linked_list_t dead_processes_receiver;
+    linked_list_move(&dead_tasks_receiver, &dead_tasks);
+    linked_list_move(&dead_processes_receiver, &dead_processes);
+    spinlock_unlock(&dead_resource_lock);
+
+    if (dead_tasks_receiver.size > 0) {
+      // Clean dead task struct.
+      while (dead_tasks_receiver.size > 0) {
+        linked_list_node_t* head = dead_tasks_receiver.head;
+        linked_list_remove(&dead_tasks_receiver, head);
+        tcb_t* thread = (tcb_t*)head->ptr;
+        //monitor_printf("clean thread %d\n", thread->id);
+        kfree(thread);
+        kfree(head);
+      }
+    }
+
+    if (dead_processes_receiver.size > 0) {
+      // Clean dead process struct.
+      while (dead_processes_receiver.size > 0) {
+        linked_list_node_t* head = dead_processes_receiver.head;
+        linked_list_remove(&dead_processes_receiver, head);
+        pcb_t* process = (pcb_t*)head->ptr;
+        //monitor_printf("clean process %d\n", process->id);
+        kfree(process);
+        kfree(head);
+      }
+    }
+
+    schedule_thread_yield();
+  }
+}
+
+static bool has_dead_resource() {
+  return dead_processes.size > 0 || dead_tasks.size > 0;
+}
+
+static void kernel_init_thread() {
+  // thread-2
+  //monitor_println("start init process ...");
+
+  // Change this process to user process.
+  pcb_t* crt_process = get_crt_thread()->process;
+  crt_process->is_kernel_process = false;
+
+  // Load and start init process.
+  // thread-3
+  process_exec("init", 0, nullptr);
+}
+
+
+// *************************************************************************************************
 tcb_t* get_crt_thread() {
   return (tcb_t*)(get_crt_thread_node()->ptr);
 }
@@ -59,87 +184,30 @@ bool is_kernel_main_thread() {
   return crt_thread_node == main_thread_node;
 }
 
-static void destroy_thread(thread_node_t* thread_node);
-
-static void kernel_main_thread(char* argv[]) {
-  while (1) {
-    // Fast fetch out all nodes from dead tasks.
-    disable_interrupt();
-    linked_list_t dead_tasks_copy;
-    linked_list_move(&dead_tasks_copy, &dead_tasks);
-    enable_interrupt();
-
-    if (dead_tasks_copy.size > 0) {
-      // Clean dead tasks.
-      while (dead_tasks_copy.size > 0) {
-        thread_node_t* head = dead_tasks_copy.head;
-        linked_list_remove(&dead_tasks_copy, head);
-        destroy_thread(head);
-      }
-      schedule_thread_yield();
-    } else {
-      cpu_idle();
-    }
-  }
+void add_new_process(pcb_t* process) {
+  spinlock_lock(&processes_map_lock);
+  hash_table_put(&processes_map, process->id, process);
+  spinlock_unlock(&processes_map_lock);
 }
 
-static void init_kernel_thread(char* argv[]) {
-  monitor_println("start init process ...");
-
-  // Change this process to user process.
-  pcb_t* crt_process = get_crt_thread()->process;
-  crt_process->is_kernel_process = false;
-
-  // Start init process.
-  // thread-2
-  process_exec("init", 0, nullptr);
+void add_dead_process(pcb_t* process) {
+  spinlock_lock(&dead_resource_lock);
+  linked_list_append_ele(&dead_processes, process);
+  cond_var_notify(&dead_resource_cv);
+  spinlock_unlock(&dead_resource_lock);
 }
 
-void init_scheduler() {
-  linked_list_init(&ready_tasks);
-  linked_list_init(&ready_tasks_candidates);
-  spinlock_init(&ready_tasks_candidates_lock);
-
-  linked_list_init(&dead_tasks);
-
-  hash_table_init(&processes_map);
-  spinlock_init(&processes_map_lock);
-
-  linked_list_init(&dead_processes);
-  spinlock_init(&dead_processes_lock);
-
-  hash_table_init(&threads_map);
-  spinlock_init(&threads_map_lock);
-
-  // Create process 0: kernel main process (cpu idle)
-  main_process = create_process("kernel_main_process", /* is_kernel_process = */true);
-  tcb_t* main_thread = create_new_kernel_thread(main_process, nullptr, kernel_main_thread, nullptr);
-  main_thread_node = (thread_node_t*)kmalloc(sizeof(thread_node_t));
-  main_thread_node->ptr = main_thread;
-  crt_thread_node = main_thread_node;
-
-  // Create process 1: init process
-  pcb_t* process = create_process(nullptr, /* is_kernel_process = */true);
-  tcb_t* thread = create_new_kernel_thread(process, nullptr, init_kernel_thread, nullptr);
-  add_thread_to_schedule(thread);
-
-  // Start the main thread.
-  asm volatile (
-   "movl %0, %%esp; \
-    pop %%edi; \
-    pop %%esi; \
-    pop %%ebp; \
-    pop %%ebx; \
-    pop %%edx; \
-    pop %%ecx; \
-    pop %%eax; \
-    ret": : "g" (main_thread->self_kstack) : "memory");
-
-  // Never should reach here!
-  PANIC();
+void add_dead_task(tcb_t* thread) {
+  spinlock_lock(&dead_resource_lock);
+  linked_list_append_ele(&dead_tasks, thread);
+  cond_var_notify(&dead_resource_cv);
+  spinlock_unlock(&dead_resource_lock);
 }
 
 static void process_switch(pcb_t* process) {
+  if (process == nullptr) {
+    process = main_process;
+  }
   reload_page_directory(&process->page_dir);
 }
 
@@ -156,14 +224,6 @@ static void merge_ready_tasks() {
 static void do_context_switch() {
   //monitor_printf("ready_tasks num = %d\n", ready_tasks.size);
   tcb_t* old_thread = get_crt_thread();
-  if (old_thread->status == TASK_DEAD) {
-    // If current thread is dead, add it to dead tasks queue and wake up main thread to clean up.
-    linked_list_append(&dead_tasks, crt_thread_node);
-    if (!main_thread_in_ready_queue) {
-      linked_list_append(&ready_tasks, main_thread_node);
-      main_thread_in_ready_queue = true;
-    }
-  }
 
   thread_node_t* head = ready_tasks.head;
   linked_list_remove(&ready_tasks, head);
@@ -245,7 +305,8 @@ void schedule_thread_yield() {
   disable_interrupt();
   merge_ready_tasks();
 
-  if (ready_tasks.size == 0 && crt_thread_node != main_thread_node) {
+  // If no ready task in queue, wake up kernel main (cpu idle) thread.
+  if (ready_tasks.size == 0) {
     linked_list_append(&ready_tasks, main_thread_node);
     main_thread_in_ready_queue = 1;
   }
@@ -264,12 +325,16 @@ void schedule_thread_exit() {
   // Detach this thread from its process.
   tcb_t* thread = get_crt_thread();
   pcb_t* process = thread->process;
-  remove_process_thread(process, thread);
+  if (process != nullptr) {
+    remove_process_thread(process, thread);
+  }
+
+  thread->status = TASK_DEAD;
+  add_dead_task(thread);
 
   // Mark this thread TASK_dead.
   disable_interrupt();
   merge_ready_tasks();
-  thread->status = TASK_DEAD;
   do_context_switch();
 }
 
@@ -278,40 +343,4 @@ void schedule_thread_exit_normal() {
   //pcb_t* process = thread->process;
   //monitor_printf("process %d thread %d exit\n", process->id, thread->id);
   thread_exit();
-}
-
-// TODO: move it to thread.c
-static void destroy_thread(thread_node_t* thread_node) {
-  tcb_t* thread = (tcb_t*)thread_node->ptr;
-  //monitor_printf("clean thread %s\n", thread->name);
-
-  // // If all threads exit, this process should exit too.
-  // if (process->threads.size == 0) {
-  //   //monitor_printf("process %d has no threads, destroying\n", process->id);
-
-  //   // Remove this process from prcoesses map.
-  //   spinlock_lock(&processes_map_lock);
-  //   ASSERT(hash_table_remove(&processes_map, process->id) == process);
-  //   spinlock_unlock(&processes_map_lock);
-
-  //   // Process exit and destroy.
-  //   //monitor_printf("process %d exit with %d\n", process->id, thread->exit_code);
-  //   process_exit();
-  //   destroy_process(process);
-  // }
-
-  kfree(thread);
-  kfree(thread_node);
-}
-
-void add_new_process(pcb_t* process) {
-  spinlock_lock(&processes_map_lock);
-  hash_table_put(&processes_map, process->id, process);
-  spinlock_unlock(&processes_map_lock);
-}
-
-void add_dead_process(pcb_t* process) {
-  spinlock_lock(&dead_processes_lock);
-  linked_list_append_ele(&dead_processes, process);
-  spinlock_unlock(&dead_processes_lock);
 }

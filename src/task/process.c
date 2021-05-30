@@ -14,8 +14,6 @@
 
 static uint32 next_pid = 0;
 
-extern tcb_t* thread_fork_wrapper();
-
 // ****************************************************************************
 pcb_t* create_process(char* name, uint8 is_kernel_process) {
   pcb_t* process = (pcb_t*)kmalloc(sizeof(pcb_t));
@@ -58,8 +56,8 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
   return process;
 }
 
-tcb_t* create_new_kernel_thread(pcb_t* process, char* name, void* function, char** argv) {
-  tcb_t* thread = init_thread(nullptr, name, function, 0, argv, false, THREAD_DEFAULT_PRIORITY);
+tcb_t* create_new_kernel_thread(pcb_t* process, char* name, void* function) {
+  tcb_t* thread = init_thread(nullptr, name, function, 0, nullptr, false, THREAD_DEFAULT_PRIORITY);
   add_process_thread(process, thread);
   return thread;
 }
@@ -101,6 +99,7 @@ void remove_process_thread(pcb_t* process, tcb_t* thread) {
   spinlock_lock(&process->lock);
   tcb_t* removed_thread = hash_table_remove(&process->threads, thread->id);
   ASSERT(removed_thread == thread);
+  thread->process = nullptr;
   if (thread->user_stack_index >= 0) {
     //monitor_printf("thread %d release user stack %d\n", thread->id, thread->user_stack_index);
     bitmap_clear_bit(&process->user_thread_stack_indexes, thread->user_stack_index);
@@ -115,14 +114,6 @@ void add_child_process(pcb_t* parent, pcb_t* child) {
 }
 
 int32 process_fork() {
-  // Copy current thread and prepare for its kernel and user stacks.
-  tcb_t* thread = thread_fork_wrapper();
-  if (thread == nullptr) {
-    // child thread.
-    monitor_printf("debug1\n");
-    return 0;
-  }
-
   // Create a new process, with page directory cloned from this process.
   pcb_t* process = create_process(nullptr, /* is_kernel_process = */false);
   add_new_process(process);
@@ -130,6 +121,12 @@ int32 process_fork() {
   pcb_t* parent_process = get_crt_thread()->process;
   process->parent = parent_process;
   add_child_process(parent_process, process);
+
+  // Copy current thread and prepare for its kernel and user stacks.
+  tcb_t* thread = fork_crt_thread();
+  if (thread == nullptr) {
+    return -1;
+  }
 
   // Add new thread to new process.
   add_process_thread(process, thread);
@@ -334,15 +331,30 @@ void process_exit(int32 exit_code) {
   pcb_t* process = thread->process;
   pcb_t* parent = process->parent;
 
+  // Terminate this process:
+  //  - Remove current thread from this process;
+  //  - Hand over all remaining children to init process;
+  //  - Set this process exit info;
+  //  - Destroy all other resources;
+  spinlock_lock(&process->lock);
   // TODO: If multi threads are running on this process, kill them.
   if (process->threads.size > 1) {
+    spinlock_unlock(&process->lock);
     return;
   }
+
+  tcb_t* removed_thread = hash_table_remove(&process->threads, thread->id);
+  ASSERT(removed_thread == thread);
+  // Thread will use kernel page table after this line.
+  thread->process = nullptr;
+
+  // TODO: hand over children processes to kernel main.
 
   process->exit_code = exit_code;
   process->status = PROCESS_EXIT;
 
-  // TODO: hand over children processes to kernel main.
+  destroy_process(process);
+  spinlock_unlock(&process->lock);
 
   // Add to parent's exit_children_processes, and maybe wake up parent.
   spinlock_lock(&parent->lock);
@@ -357,13 +369,12 @@ void process_exit(int32 exit_code) {
   schedule_thread_exit();
 }
 
-// Destroy a process and release all its resources:
-//  - user_thread_stack_indexes bitmap;
-//  - all pages (including page dir and page tables);
+// Destroy a process and release all its resources.
 void destroy_process(pcb_t* process) {
   bitmap_destroy(&process->user_thread_stack_indexes);
 
-  // TODO: release all page frames;
+  hash_table_clear(&process->exit_children_processes);
+  hash_table_destroy(&process->exit_children_processes);
 
-  kfree(process);
+  // TODO: release all page frames;
 }

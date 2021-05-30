@@ -2,17 +2,24 @@
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "monitor/monitor.h"
+#include "sync/spinlock.h"
 #include "utils/math.h"
+#include "utils/hash_table.h"
 #include "utils/debug.h"
 
 // kernel's page directory
-page_directory_t kernel_page_directory;
+static page_directory_t kernel_page_directory;
 
 // the current page directory;
 page_directory_t* current_page_directory = 0;
 
 static bitmap_t phy_frames_map;
-uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
+static uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
+static spinlock_t phy_frames_map_lock;
+
+// copy-on-write frames' reference counts
+static hash_table_t frame_cow_ref_counts;
+static spinlock_t frame_cow_ref_counts_lock;
 
 void init_paging() {
   // Initialize phy_frames_map. Note we have already used the first 3MB and last 4KB
@@ -36,24 +43,31 @@ void init_paging() {
   register_interrupt_handler(14, page_fault_handler);
 }
 
+void init_paging_stage2() {
+  spinlock_init(&phy_frames_map_lock);
+
+  hash_table_init(&frame_cow_ref_counts);
+  spinlock_init(&frame_cow_ref_counts_lock);
+}
+
 int32 allocate_phy_frame() {
   uint32 frame;
+  spinlock_lock(&phy_frames_map_lock);
   if (!bitmap_allocate_first_free(&phy_frames_map, &frame)) {
+    spinlock_unlock(&phy_frames_map_lock);
     return -1;
   }
-
+  spinlock_unlock(&phy_frames_map_lock);
   return (int32)frame;
 }
 
 void release_phy_frame(uint32 frame) {
+  spinlock_lock(&phy_frames_map_lock);
   bitmap_clear_bit(&phy_frames_map, frame);
+  spinlock_unlock(&phy_frames_map_lock);
 }
 
-void switch_page_directory(page_directory_t* dir) {
-  current_page_directory = dir;
-  asm volatile("mov %0, %%cr3":: "r"(dir->page_dir_entries_phy));
-
-  // enable paging!
+void enable_paging() {
   uint32 cr0;
   asm volatile("mov %%cr0, %0": "=r"(cr0));
   cr0 |= 0x80000000;
@@ -67,6 +81,32 @@ void reload_page_directory(page_directory_t *dir) {
 
 page_directory_t* get_crt_page_directory() {
   return current_page_directory;
+}
+
+static int32 change_cow_frame_refcount(uint32 frame, int32 refcount_delta) {
+  spinlock_lock(&frame_cow_ref_counts_lock);
+  int32* cnt_ptr = hash_table_get(&frame_cow_ref_counts, frame);
+  int32 old_cnt;
+  int32 new_cnt;
+  if (cnt_ptr != nullptr) {
+    old_cnt = *cnt_ptr;
+    new_cnt = old_cnt + refcount_delta;
+  } else {
+    old_cnt = 0;
+    new_cnt = old_cnt + refcount_delta;
+  }
+
+  if (new_cnt > 0) {
+    if (cnt_ptr != nullptr) {
+      *cnt_ptr = new_cnt;
+    } else {
+      cnt_ptr = (int32*)kmalloc(sizeof(int32));
+      *cnt_ptr = new_cnt;
+      hash_table_put(&frame_cow_ref_counts, frame, cnt_ptr);
+    }
+  }
+  spinlock_unlock(&frame_cow_ref_counts_lock);
+  return old_cnt;
 }
 
 void page_fault_handler(isr_params_t params) {
@@ -147,12 +187,15 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
       // Handle copy-on-write page fault:
       //   - copy the content of this page to a new frame;
       //   - re-map fault page to the new frame.
-      //   - TODO: decrease ref count of shared frame.
+      //   - decrease ref count of shared frame.
       void* copy_page = kmalloc_aligned(PAGE_SIZE);
       map_page_with_frame((uint32)copy_page, frame);
       memcpy(copy_page, (void*)(virtual_addr / PAGE_SIZE * PAGE_SIZE), PAGE_SIZE);
       pte->frame = frame;
       pte->rw = 1;
+
+      int32 cow_refs = change_cow_frame_refcount(pte->frame, -1);
+      ASSERT(cow_refs > 0);
 
       kfree(copy_page);
       release_page((uint32)copy_page);
@@ -168,9 +211,14 @@ void release_page(uint32 virtual_addr) {
   // reset pte
   uint32 pte_index = virtual_addr >> 12;
   pte_t* pte = (pte_t*)PAGE_TABLES_VIRTUAL + pte_index;
+  uint32 frame = pte->frame;
   *((uint32*)pte) = 0;
 
-  // TODO: decrease ref count of the frame.
+  // Decrease ref count of the cow frame.
+  int32 cow_refs = change_cow_frame_refcount(frame, -1);
+  if (cow_refs <= 0) {
+    release_phy_frame(frame);
+  }
 }
 
 void release_pages(uint32 virtual_addr, uint32 pages) {
@@ -260,9 +308,10 @@ page_directory_t clone_crt_page_dir() {
       if (!new_pte->present) {
         continue;
       }
-      // copy-on-write
+      // Mark copy-on-write: increase copy-on-write ref count.
       crt_pte->rw = 0;
       new_pte->rw = 0;
+      int32 cow_refs = change_cow_frame_refcount(new_pte->frame, 1);
     }
 
     // Set page dir entry.

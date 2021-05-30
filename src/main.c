@@ -33,6 +33,7 @@ int main() {
 
   init_paging();
   init_kheap();
+  init_paging_stage2();
 
   init_hard_disk();
   init_file_system();

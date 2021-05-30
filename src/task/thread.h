@@ -22,7 +22,7 @@ typedef linked_list_node_t thread_node_t;
 
 typedef isr_params_t interrupt_stack_t;
 
-typedef void thread_func(char**);
+typedef void thread_func();
 
 enum task_status {
   TASK_RUNNING,
@@ -62,13 +62,11 @@ struct switch_stack {
   uint32 ecx;
   uint32 eax;
 
-  // Below are only used for thread first run, which enters kernel_thread.
-  void (*eip)(thread_func* func, char** argv, tcb_t* thread);
+  // For thread first run.
+  uint32 thread_entry_eip;
 
   void (*unused_retaddr);
   thread_func* function;
-  char** argv;
-  tcb_t* tcb;
 };
 typedef struct switch_stack switch_stack_t;
 

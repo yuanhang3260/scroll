@@ -33,6 +33,8 @@ bool hash_table_contains(hash_table_t* this, uint32 key);
 
 void* hash_table_remove(hash_table_t* this, uint32 key);
 
+void hash_table_clear(hash_table_t* this);
+
 void hash_table_destroy(hash_table_t* this);
 
 void hash_table_print(hash_table_t* this);

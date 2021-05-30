@@ -54,6 +54,9 @@ typedef struct page_directory {
 
 // *****************************************************************************
 void init_paging();
+void init_paging_stage2();
+
+void enable_paging();
 
 // Physical frame alloc/release.
 int32 allocate_phy_frame();

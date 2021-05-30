@@ -1,8 +1,13 @@
 [GLOBAL cpu_idle]
 [GLOBAL context_switch]
+[GLOBAL switch_to_user_mode]
+[GLOBAL resume_thread]
+
+[EXTERN interrupt_exit]
 
 cpu_idle:
   hlt
+  ret
 
 context_switch:
   push eax
@@ -18,6 +23,8 @@ context_switch:
   ; jump to next thread's kernel stack and recover its execution
   mov eax, [esp + 36]
   mov esp, [eax]
+
+resume_thread:
   pop edi
   pop esi
   pop ebp
@@ -29,3 +36,7 @@ context_switch:
   sti
   ret
 
+
+switch_to_user_mode:
+  add esp, 8
+  jmp interrupt_exit

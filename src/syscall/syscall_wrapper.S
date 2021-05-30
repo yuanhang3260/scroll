@@ -1,5 +1,6 @@
 [GLOBAL syscall_entry]
 [GLOBAL syscall_exit]
+[GLOBAL syscall_fork_exit]
 
 [EXTERN syscall_handler]
 
@@ -29,10 +30,12 @@ syscall_entry:
   mov fs, cx
   mov gs, cx
 
+  sti  ; allow interrupt during syscall
   call syscall_handler
 
 syscall_exit:
-  ; recover the original data segment
+  ; recover the original data segment.
+  ; Do NOT use eax because it is the return value of syscall!
   pop ecx
   mov ds, cx
   mov es, cx
@@ -42,7 +45,7 @@ syscall_exit:
   pop  edi
   pop  esi
   pop  ebp
-  add  esp, 4  ; do not pop old esp, otherwise child process will not return normally from fork()
+  pop  esp
   pop  ebx
   pop  edx
   pop  ecx
@@ -54,40 +57,29 @@ syscall_exit:
   ; pop cs, eip, eflags, user_ss, and user_esp by processor
   iret
 
-;************************************ thread fork wrapper ******************************************
-[GLOBAL thread_fork_wrapper]
-[GLOBAL thread_fork_child_exit]
+syscall_fork_exit:
+  ; move esp to interrupt stack
+  add esp, 8
 
-[EXTERN fork_crt_thread]
+  ; recover the original data segment.
+  pop ecx
+  mov ds, cx
+  mov es, cx
+  mov fs, cx
+  mov gs, cx
 
-thread_fork_wrapper:
-  push ecx
-  push edx
-  push ebx
-  push ebp
-  push esi
-  push edi
-
-  call fork_crt_thread
-
-thread_fork_exit:
   pop edi
   pop esi
   pop ebp
+  add esp, 4  ; do not pop old esp, otherwise child process will not return normally from fork()
   pop ebx
   pop edx
   pop ecx
+  mov eax, 0  ; child process returns 0
+  add esp, 4
 
-  ret
+  ; pop dummy values
+  add esp, 8
 
-thread_fork_child_exit:
-  add esp, 16
-
-  pop  edi
-  pop  esi
-  pop  ebp
-  pop  ebx
-  pop  edx
-  pop  ecx
-
-  ret
+  ; pop cs, eip, eflags, user_ss, and user_esp by processor
+  iret

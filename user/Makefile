@@ -55,5 +55,5 @@ $(LIB_DIR)/sys/%.o: $(SRC_DIR)/sys/%.c $(SRC_DIR)/sys/%.h
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 clean:
-	rm -rf ${BIN_DIR}/* ${LIB_DIR}/* user_disk_image
+	rm -rf ${BIN_DIR}/* ${LIB_DIR}/* user_disk_image user_dump.txt
 	cp greeting.txt ${BIN_DIR}/greeting.txt

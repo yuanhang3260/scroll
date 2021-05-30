@@ -30,7 +30,6 @@ void schedule_mark_thread_block();
 void schedule_thread_exit();
 void schedule_thread_exit_normal();
 
-
 // Add process to scheduler
 void add_new_process(pcb_t* process);
 void add_dead_process(pcb_t* process);

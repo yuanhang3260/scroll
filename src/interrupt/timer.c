@@ -16,6 +16,7 @@ static void timer_callback(isr_params_t regs) {
   }
   tick++;
 
+  //monitor_printf("tick = %d, eip = %x\n", tick, regs.eip);
   maybe_context_switch();
 }
 
