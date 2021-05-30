@@ -188,14 +188,16 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
       //   - copy the content of this page to a new frame;
       //   - re-map fault page to the new frame.
       //   - decrease ref count of shared frame.
-      void* copy_page = kmalloc_aligned(PAGE_SIZE);
-      map_page_with_frame((uint32)copy_page, frame);
-      memcpy(copy_page, (void*)(virtual_addr / PAGE_SIZE * PAGE_SIZE), PAGE_SIZE);
-      pte->frame = frame;
-      pte->rw = 1;
-
       int32 cow_refs = change_cow_frame_refcount(pte->frame, -1);
-      ASSERT(cow_refs > 0);
+      if (cow_refs > 0) {
+        void* copy_page = kmalloc_aligned(PAGE_SIZE);
+        map_page_with_frame((uint32)copy_page, frame);
+        memcpy(copy_page, (void*)(virtual_addr / PAGE_SIZE * PAGE_SIZE), PAGE_SIZE);
+        pte->frame = frame;
+        pte->rw = 1;
+      } else {
+        pte->rw = 1;
+      }
 
       kfree(copy_page);
       release_page((uint32)copy_page);
