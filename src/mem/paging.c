@@ -18,12 +18,12 @@ static uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
 static spinlock_t phy_frames_map_lock;
 
 // copy-on-write frames' reference counts
+static bool copy_on_write_ready = false;
 static hash_table_t frame_cow_ref_counts;
 static spinlock_t frame_cow_ref_counts_lock;
 
 void init_paging() {
-  // Initialize phy_frames_map. Note we have already used the first 3MB and last 4KB
-  // phyical memory for kernel initialization.
+  // Initialize phy_frames_map. Note we have already used the first 3MB for kernel initialization.
   //
   // totally 8192 frames
   for (int i = 0; i < 3 * 1024 * 1024 / PAGE_SIZE / 32; i++) {
@@ -48,6 +48,8 @@ void init_paging_stage2() {
 
   hash_table_init(&frame_cow_ref_counts);
   spinlock_init(&frame_cow_ref_counts_lock);
+
+  copy_on_write_ready = true;
 }
 
 int32 allocate_phy_frame() {
@@ -84,6 +86,10 @@ page_directory_t* get_crt_page_directory() {
 }
 
 static int32 change_cow_frame_refcount(uint32 frame, int32 refcount_delta) {
+  if (!copy_on_write_ready) {
+    return 0;
+  }
+
   spinlock_lock(&frame_cow_ref_counts_lock);
   int32* cnt_ptr = hash_table_get(&frame_cow_ref_counts, frame);
   int32 old_cnt;
@@ -195,18 +201,25 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
         memcpy(copy_page, (void*)(virtual_addr / PAGE_SIZE * PAGE_SIZE), PAGE_SIZE);
         pte->frame = frame;
         pte->rw = 1;
+
+        kfree(copy_page);
+        release_map((uint32)copy_page);
       } else {
         pte->rw = 1;
       }
-
-      kfree(copy_page);
-      release_page((uint32)copy_page);
     }
   }
 }
 
 void map_page(uint32 virtual_addr) {
   map_page_with_frame(virtual_addr, -1);
+}
+
+void release_map(uint32 virtual_addr) {
+  // reset pte
+  uint32 pte_index = virtual_addr >> 12;
+  pte_t* pte = (pte_t*)PAGE_TABLES_VIRTUAL + pte_index;
+  *((uint32*)pte) = 0;
 }
 
 void release_page(uint32 virtual_addr) {
@@ -327,8 +340,8 @@ page_directory_t clone_crt_page_dir() {
   // Release mapping for new page tables on current process.
   kfree((void*)copied_page_dir);
   kfree((void*)copied_page_table);
-  release_pages(copied_page_dir, 1);
-  release_pages(copied_page_table, 1);
+  release_map(copied_page_dir);
+  release_map(copied_page_table);
 
   page_directory_t page_directory;
   page_directory.page_dir_entries_phy = new_pd_frame * PAGE_SIZE;

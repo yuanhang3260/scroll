@@ -66,6 +66,7 @@ void release_phy_frame(uint32 frame);
 void map_page(uint32 virtual_addr);
 
 // Release virtual page mapping and return the physical frame(s).
+void release_map(uint32 virtual_addr);
 void release_page(uint32 virtual_addr);
 void release_pages(uint32 virtual_addr, uint32 pages);
 
