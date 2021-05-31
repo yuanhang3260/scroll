@@ -65,10 +65,8 @@ void release_phy_frame(uint32 frame);
 // Map virtual page to a physical frame.
 void map_page(uint32 virtual_addr);
 
-// Release virtual page mapping and return the physical frame(s).
-void release_map(uint32 virtual_addr);
-void release_page(uint32 virtual_addr);
-void release_pages(uint32 virtual_addr, uint32 pages);
+// Release virtual page mapping and maybe return the physical frame(s).
+void release_pages(uint32 virtual_addr, uint32 pages, bool release_frame);
 
 // Switch to a different page directory.
 page_directory_t* get_crt_page_directory();

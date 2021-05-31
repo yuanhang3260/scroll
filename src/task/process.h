@@ -53,6 +53,7 @@ struct process_struct {
 
   // page directory
   page_directory_t page_dir;
+  spinlock_t page_dir_lock;
 
   // lock to protect this struct
   spinlock_t lock;

@@ -22,7 +22,11 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
   if (thread == nullptr) {
     // Allocate one page as tcb_t and kernel stack for each thread.
     thread = (tcb_t*)kmalloc_aligned(KERNEL_STACK_SIZE);
-    memset(thread, 0, sizeof(tcb_t));
+    // Map pages manually for kernel stack, to prevent double page fault while stack is growing.
+    for (int32 i = 0; i < KERNEL_STACK_SIZE / PAGE_SIZE; i++) {
+      map_page((uint32)thread + i * PAGE_SIZE);
+    }
+    memset(thread, 0, KERNEL_STACK_SIZE);
   }
 
   thread->id = next_thread_id++;

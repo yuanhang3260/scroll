@@ -75,11 +75,13 @@ static int32 run_program() {
     printf("fork failed");
   } else if (pid > 0) {
     // parent
+    printf("created child process %d\n", pid);
     int32 status;
     wait(pid, &status);
     //printf("child process %d exit with code %d\n", pid, status);
   } else {
     // child
+    //printf("child process started\n");
     int32 ret = exec(program, args_index, (char**)args);
     exit(ret);
   }
@@ -176,5 +178,5 @@ static int32 run_shell() {
 }
 
 int32 main(uint32 argc, char* argv[]) {
-  run_shell();
+  return run_shell();
 }

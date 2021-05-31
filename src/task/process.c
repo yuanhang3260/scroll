@@ -49,6 +49,7 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
   process->waiting_thread_node = nullptr;
 
   process->page_dir = clone_crt_page_dir();
+  spinlock_init(&process->page_dir_lock);
 
   spinlock_init(&process->lock);
 
@@ -111,6 +112,11 @@ void add_child_process(pcb_t* parent, pcb_t* child) {
   spinlock_lock(&parent->lock);
   hash_table_put(&parent->children_processes, child->id, child);
   spinlock_unlock(&parent->lock);
+}
+
+static void release_user_space_pages() {
+  // User virtual space is 4MB - 3G, totally 1024 * 3/4 - 1 = 767 page dir entries.
+  release_pages(4 * 1024 * 1024, 767 * 1024, true);
 }
 
 int32 process_fork() {
@@ -181,8 +187,9 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   strcpy(path_copy, path);
 
   // Release all user space pages of this process.
-  // User virtual space is 4MB - 3G, totally 1024 * 3/4 - 1 = 767 page dir entries.
-  release_pages(4 * 1024 * 1024, 767 * 1024);
+  monitor_printf("debug1\n");
+  release_user_space_pages();
+  monitor_printf("debug2\n");
 
   // Load elf binary.
   uint32 exec_entry;
@@ -346,7 +353,6 @@ void process_exit(int32 exit_code) {
   tcb_t* removed_thread = hash_table_remove(&process->threads, thread->id);
   ASSERT(removed_thread == thread);
   // Thread will use kernel page table after this line.
-  thread->process = nullptr;
 
   // TODO: hand over children processes to kernel main.
 
@@ -354,6 +360,8 @@ void process_exit(int32 exit_code) {
   process->status = PROCESS_EXIT;
 
   destroy_process(process);
+
+  thread->process = nullptr;
   spinlock_unlock(&process->lock);
 
   // Add to parent's exit_children_processes, and maybe wake up parent.
@@ -376,5 +384,6 @@ void destroy_process(pcb_t* process) {
   hash_table_clear(&process->exit_children_processes);
   hash_table_destroy(&process->exit_children_processes);
 
-  // TODO: release all page frames;
+  monitor_printf("destroy process %d pages \n", process->id);
+  release_user_space_pages();
 }

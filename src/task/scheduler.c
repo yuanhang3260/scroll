@@ -23,7 +23,7 @@ static pcb_t* main_process;
 static thread_node_t* main_thread_node;
 static thread_node_t* kernel_clean_node;
 
-static thread_node_t* crt_thread_node;
+static thread_node_t* crt_thread_node = nullptr;
 
 // processes map
 static hash_table_t processes_map;
@@ -46,6 +46,7 @@ static spinlock_t ready_tasks_candidates_lock;
 
 static bool main_thread_in_ready_queue = false;
 
+static bool multi_task_enabled = false;
 
 // *************************************************************************************************
 static void destroy_thread(thread_node_t* thread_node);
@@ -54,6 +55,10 @@ static void kernel_clean_thread();
 static void kernel_init_thread();
 
 static bool has_dead_resource();
+
+bool multi_task_is_enabled() {
+  return multi_task_enabled;
+}
 
 void init_scheduler() {
   disable_interrupt();
@@ -106,6 +111,7 @@ static void kernel_main_thread() {
   add_thread_to_schedule(init_thread);
 
   // Enable interrupt: multi tasks start running after this line.
+  multi_task_enabled = true;
   enable_interrupt();
 
   // Enter cpu idle.
@@ -173,11 +179,22 @@ static void kernel_init_thread() {
 
 // *************************************************************************************************
 tcb_t* get_crt_thread() {
-  return (tcb_t*)(get_crt_thread_node()->ptr);
+  if (crt_thread_node == nullptr) {
+    return nullptr;
+  }
+  return (tcb_t*)(crt_thread_node->ptr);
 }
 
 thread_node_t* get_crt_thread_node() {
   return crt_thread_node;
+}
+
+pcb_t* get_crt_process() {
+  tcb_t* thread = get_crt_thread();
+  if (thread == nullptr) {
+    return nullptr;
+  }
+  return thread->process;
 }
 
 bool is_kernel_main_thread() {

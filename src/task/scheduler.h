@@ -9,6 +9,7 @@ void init_scheduler();
 // Get current running thread.
 tcb_t* get_crt_thread();
 thread_node_t* get_crt_thread_node();
+pcb_t* get_crt_process();
 
 // If current running thread is kernel main thread.
 bool is_kernel_main_thread();
@@ -33,5 +34,7 @@ void schedule_thread_exit_normal();
 // Add process to scheduler
 void add_new_process(pcb_t* process);
 void add_dead_process(pcb_t* process);
+
+bool multi_task_is_enabled();
 
 #endif

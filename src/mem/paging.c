@@ -3,6 +3,9 @@
 #include "mem/kheap.h"
 #include "monitor/monitor.h"
 #include "sync/spinlock.h"
+#include "task/thread.h"
+#include "task/process.h"
+#include "task/scheduler.h"
 #include "utils/math.h"
 #include "utils/hash_table.h"
 #include "utils/debug.h"
@@ -22,6 +25,9 @@ static bool copy_on_write_ready = false;
 static hash_table_t frame_cow_ref_counts;
 static spinlock_t frame_cow_ref_counts_lock;
 
+// locks for page copy
+static spinlock_t page_copy_lock;
+
 void init_paging() {
   // Initialize phy_frames_map. Note we have already used the first 3MB for kernel initialization.
   //
@@ -30,14 +36,15 @@ void init_paging() {
     bitarray[i] = 0xFFFFFFFF;
   }
   phy_frames_map = bitmap_create(bitarray, PHYSICAL_MEM_SIZE / PAGE_SIZE);
-  bitmap_clear_bit(&phy_frames_map, PHYSICAL_MEM_SIZE / PAGE_SIZE - 1);
+  // Last virtual page is kernel stack.
+  bitmap_set_bit(&phy_frames_map, PHYSICAL_MEM_SIZE / PAGE_SIZE - 1);
 
   // Initialize page directory.
   kernel_page_directory.page_dir_entries_phy = KERNEL_PAGE_DIR_PHY;
   current_page_directory = &kernel_page_directory;
 
   // Release memory for loading kernel binany - it's no longer needed.
-  release_pages(0xFFFFFFFF - KERNEL_BIN_LOAD_SIZE + 1, KERNEL_BIN_LOAD_SIZE / PAGE_SIZE);
+  release_pages(0xFFFFFFFF - KERNEL_BIN_LOAD_SIZE + 1, KERNEL_BIN_LOAD_SIZE / PAGE_SIZE, true);
 
   // Register page fault handler.
   register_interrupt_handler(14, page_fault_handler);
@@ -49,12 +56,25 @@ void init_paging_stage2() {
   hash_table_init(&frame_cow_ref_counts);
   spinlock_init(&frame_cow_ref_counts_lock);
 
+  spinlock_init(&page_copy_lock);
+
   copy_on_write_ready = true;
 }
 
-int32 allocate_phy_frame() {
+int32 release_user_space_pages() {
   uint32 frame;
   spinlock_lock(&phy_frames_map_lock);
+  if (!bitmap_allocate_first_free(&phy_frames_map, &frame)) {
+    spinlock_unlock(&phy_frames_map_lock);
+    return -1;
+  }
+  spinlock_unlock(&phy_frames_map_lock);
+  return (int32)frame;
+}
+
+int32 allocate_phy_frame() {
+  spinlock_lock(&phy_frames_map_lock);
+  uint32 frame;
   if (!bitmap_allocate_first_free(&phy_frames_map, &frame)) {
     spinlock_unlock(&phy_frames_map_lock);
     return -1;
@@ -110,6 +130,10 @@ static int32 change_cow_frame_refcount(uint32 frame, int32 refcount_delta) {
       *cnt_ptr = new_cnt;
       hash_table_put(&frame_cow_ref_counts, frame, cnt_ptr);
     }
+  } else {
+    if (cnt_ptr != nullptr) {
+      hash_table_remove(&frame_cow_ref_counts, frame);
+    }
   }
   spinlock_unlock(&frame_cow_ref_counts_lock);
   return old_cnt;
@@ -141,7 +165,7 @@ void page_fault_handler(isr_params_t params) {
   reload_page_directory(current_page_directory);
 }
 
-static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
+static void map_page_with_frame_impl(uint32 virtual_addr, int32 frame) {
   // Lookup pde - note we use virtual address 0xC0701000 to access page
   // directory, which is the actually the 2nd page table of kernel space.
   uint32 pde_index = virtual_addr >> 22;
@@ -160,6 +184,9 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
     pde->rw = 1;
     pde->user = 1;
     pde->frame = page_table_frame;
+
+    // Reset page table pointed by this pde.
+    reload_page_directory(current_page_directory);
   }
 
   // Lookup pte - still use virtual address. Note all 1024 page tables are
@@ -173,20 +200,29 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
     pte->rw = 1;
     pte->user = 1;
     pte->frame = frame;
+    reload_page_directory(current_page_directory);
   } else {
-    // Allocate a new frame and map it.
-    frame = allocate_phy_frame();
-    if (frame < 0) {
-      monitor_printf("couldn't alloc frame for addr %x\n", virtual_addr);
-      PANIC();
-    }
+    // // Allocate a new frame and map it.
+    // frame = allocate_phy_frame();
+    // if (frame < 0) {
+    //   monitor_printf("couldn't alloc frame for addr %x\n", virtual_addr);
+    //   PANIC();
+    // }
     //monitor_printf("alloc frame %d for virtual addr %x\n", frame, virtual_addr);
 
     if (!pte->present) {
+      // Allocate a new frame and map it.
+      frame = allocate_phy_frame();
+      if (frame < 0) {
+        monitor_printf("couldn't alloc frame for addr %x\n", virtual_addr);
+        PANIC();
+      }
+
       pte->present = 1;
       pte->rw = 1;
       pte->user = 1;
       pte->frame = frame;
+      reload_page_directory(current_page_directory);
     } else if (!pte->rw) {
       //monitor_printf("handle page fault rw on %x\n", virtual_addr);
 
@@ -196,18 +232,44 @@ static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
       //   - decrease ref count of shared frame.
       int32 cow_refs = change_cow_frame_refcount(pte->frame, -1);
       if (cow_refs > 0) {
-        void* copy_page = kmalloc_aligned(PAGE_SIZE);
-        map_page_with_frame((uint32)copy_page, frame);
+        monitor_printf("cow copy %x on process %d\n", virtual_addr, get_crt_thread()->process->id);
+
+        // Allocate a new frame for "copy" on write.
+        frame = allocate_phy_frame();
+        if (frame < 0) {
+          monitor_printf("couldn't alloc frame for addr %x\n", virtual_addr);
+          PANIC();
+        }
+
+        spinlock_lock(&page_copy_lock);
+        // Do not kmalloc page for copying, because kmalloc may trigger another page fault
+        // which will result in a deadlock.
+        void* copy_page = (void*)COPIED_PAGE_VADDR;
+        map_page_with_frame_impl((uint32)copy_page, frame);
+        reload_page_directory(current_page_directory);
         memcpy(copy_page, (void*)(virtual_addr / PAGE_SIZE * PAGE_SIZE), PAGE_SIZE);
+        spinlock_unlock(&page_copy_lock);
         pte->frame = frame;
         pte->rw = 1;
 
-        kfree(copy_page);
-        release_map((uint32)copy_page);
+        //kfree(copy_page);
+        release_pages((uint32)copy_page, 1, false);
       } else {
+        monitor_printf("cow rw %x on process %d\n", virtual_addr, get_crt_thread()->process->id);
         pte->rw = 1;
+        reload_page_directory(current_page_directory);
       }
     }
+  }
+}
+
+static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
+  if (multi_task_is_enabled()) {
+    spinlock_lock(&get_crt_thread()->process->page_dir_lock);
+  }
+  map_page_with_frame_impl(virtual_addr, frame);
+  if (multi_task_is_enabled()) {
+    spinlock_unlock(&get_crt_thread()->process->page_dir_lock);
   }
 }
 
@@ -215,28 +277,30 @@ void map_page(uint32 virtual_addr) {
   map_page_with_frame(virtual_addr, -1);
 }
 
-void release_map(uint32 virtual_addr) {
+static void release_page(uint32 virtual_addr, bool free_frame) {
   // reset pte
   uint32 pte_index = virtual_addr >> 12;
   pte_t* pte = (pte_t*)PAGE_TABLES_VIRTUAL + pte_index;
-  *((uint32*)pte) = 0;
-}
-
-void release_page(uint32 virtual_addr) {
-  // reset pte
-  uint32 pte_index = virtual_addr >> 12;
-  pte_t* pte = (pte_t*)PAGE_TABLES_VIRTUAL + pte_index;
-  uint32 frame = pte->frame;
-  *((uint32*)pte) = 0;
-
-  // Decrease ref count of the cow frame.
-  int32 cow_refs = change_cow_frame_refcount(frame, -1);
-  if (cow_refs <= 0) {
-    release_phy_frame(frame);
+  if (!pte->present) {
+    return;
   }
+  uint32 frame = pte->frame;
+  if (free_frame) {
+    //monitor_printf("release page %x\n", virtual_addr);
+
+    // Decrease ref count of the cow frame.
+    int32 cow_refs = change_cow_frame_refcount(frame, -1);
+    if (cow_refs <= 0) {
+      release_phy_frame(frame);
+      memset((void*)virtual_addr, 0, PAGE_SIZE);
+    }
+  }
+
+  *((uint32*)pte) = 0;
+  reload_page_directory(current_page_directory);
 }
 
-void release_pages(uint32 virtual_addr, uint32 pages) {
+void release_pages(uint32 virtual_addr, uint32 pages, bool free_frame) {
   virtual_addr = (virtual_addr / PAGE_SIZE) * PAGE_SIZE;
 
   uint32 pte_index_start = (virtual_addr >> 12);
@@ -251,12 +315,14 @@ void release_pages(uint32 virtual_addr, uint32 pages) {
       continue;
     }
 
+    if (get_crt_process() != nullptr) {
+      monitor_printf("release_pages for process %d, pde_index %d\n", get_crt_process()->id, i);
+    }
+
     for (uint32 j = max(pte_index_start, i * 1024); j < min(pte_index_end, i * 1024 + 1024); j++) {
-      release_page(j * PAGE_SIZE);
+      release_page(j * PAGE_SIZE, free_frame);
     }
   }
-
-  reload_page_directory(current_page_directory);
 }
 
 // Copy the entire page dir and its page tables:
@@ -274,6 +340,7 @@ page_directory_t clone_crt_page_dir() {
     monitor_printf("couldn't alloc frame for new page dir\n");
     PANIC();
   }
+
   uint32 copied_page_dir = (uint32)kmalloc_aligned(PAGE_SIZE);
   map_page_with_frame(copied_page_dir, new_pd_frame);
   reload_page_directory(current_page_directory);
@@ -307,7 +374,7 @@ page_directory_t clone_crt_page_dir() {
     }
 
     // Alloc a new frame for copied page table.
-    int32 new_pt_frame = allocate_phy_frame();
+    int32 new_pt_frame = release_user_space_pages();
     if (new_pt_frame < 0) {
       monitor_printf("couldn't alloc frame for copied page table\n");
       PANIC();
@@ -340,8 +407,8 @@ page_directory_t clone_crt_page_dir() {
   // Release mapping for new page tables on current process.
   kfree((void*)copied_page_dir);
   kfree((void*)copied_page_table);
-  release_map(copied_page_dir);
-  release_map(copied_page_table);
+  release_pages(copied_page_dir, 1, false);
+  release_pages(copied_page_table, 1, false);
 
   page_directory_t page_directory;
   page_directory.page_dir_entries_phy = new_pd_frame * PAGE_SIZE;
