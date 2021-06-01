@@ -75,7 +75,7 @@ static int32 run_program() {
     printf("fork failed");
   } else if (pid > 0) {
     // parent
-    printf("created child process %d\n", pid);
+    //printf("created child process %d\n", pid);
     int32 status;
     wait(pid, &status);
     //printf("child process %d exit with code %d\n", pid, status);

@@ -4,7 +4,7 @@ extern void* get_ebp();
 
 void memset(void* addr, uint8 value, int num) {
   for (int i = 0; i < num; i++) {
-    *((uint8*)addr) = value;
+    *((uint8*)addr + i) = value;
   }
 }
 

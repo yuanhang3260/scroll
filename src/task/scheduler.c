@@ -115,14 +115,14 @@ static void kernel_main_thread() {
   enable_interrupt();
 
   // Enter cpu idle.
-  while (1) {
+  while (true) {
     cpu_idle();
   }
 }
 
 static void kernel_clean_thread() {
   // thread-1
-  while (1) {
+  while (true) {
     // Wait for dead resource to clean.
     cond_var_wait(&dead_resource_cv, &dead_resource_lock, has_dead_resource);
     linked_list_t dead_tasks_receiver;
@@ -150,7 +150,7 @@ static void kernel_clean_thread() {
         linked_list_remove(&dead_processes_receiver, head);
         pcb_t* process = (pcb_t*)head->ptr;
         //monitor_printf("clean process %d\n", process->id);
-        kfree(process);
+        destroy_process(process);
         kfree(head);
       }
     }
@@ -171,7 +171,7 @@ static void kernel_init_thread() {
   pcb_t* crt_process = get_crt_thread()->process;
   crt_process->is_kernel_process = false;
 
-  // Load and start init process.
+  // Load and run init program.
   // thread-3
   process_exec("init", 0, nullptr);
 }
@@ -300,7 +300,9 @@ void add_thread_to_schedule(tcb_t* thread) {
 void add_thread_node_to_schedule(thread_node_t* thread_node) {
   spinlock_lock(&ready_tasks_candidates_lock);
   tcb_t* thread = (tcb_t*)thread_node->ptr;
-  thread->status = TASK_READY;
+  if (thread->status != TASK_DEAD) {
+    thread->status = TASK_READY;
+  }
   linked_list_append(&ready_tasks_candidates, thread_node);
   spinlock_unlock(&ready_tasks_candidates_lock);
 }

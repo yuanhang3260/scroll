@@ -32,6 +32,7 @@
 #define PHYSICAL_MEM_SIZE             (32 * 1024 * 1024)
 #define KERNEL_BIN_LOAD_SIZE          (1024 * 1024)
 
+
 // *****************************************************************************
 // 4 byte
 typedef struct page_table_entry {
@@ -62,11 +63,15 @@ void enable_paging();
 int32 allocate_phy_frame();
 void release_phy_frame(uint32 frame);
 
+// Set all to zero for a page.
+void clear_page(uint32 addr);
+
 // Map virtual page to a physical frame.
 void map_page(uint32 virtual_addr);
 
 // Release virtual page mapping and maybe return the physical frame(s).
 void release_pages(uint32 virtual_addr, uint32 pages, bool release_frame);
+void release_pages_tables(uint32 pde_index_start, uint32 num);
 
 // Switch to a different page directory.
 page_directory_t* get_crt_page_directory();

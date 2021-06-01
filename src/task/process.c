@@ -117,6 +117,7 @@ void add_child_process(pcb_t* parent, pcb_t* child) {
 static void release_user_space_pages() {
   // User virtual space is 4MB - 3G, totally 1024 * 3/4 - 1 = 767 page dir entries.
   release_pages(4 * 1024 * 1024, 767 * 1024, true);
+  release_pages_tables(1, 767);
 }
 
 int32 process_fork() {
@@ -187,9 +188,7 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   strcpy(path_copy, path);
 
   // Release all user space pages of this process.
-  monitor_printf("debug1\n");
   release_user_space_pages();
-  monitor_printf("debug2\n");
 
   // Load elf binary.
   uint32 exec_entry;
@@ -290,7 +289,7 @@ int32 process_wait(uint32 pid, uint32* status) {
 
   // Wait for child.
   pcb_t* child = nullptr;
-  while (1) {
+  while (true) {
     hash_table_t* exit_children = &process->exit_children_processes;
     // If wait for any child exit, get one.
     if (pid == 0 && exit_children->size > 0) {
@@ -344,6 +343,7 @@ void process_exit(int32 exit_code) {
   //  - Set this process exit info;
   //  - Destroy all other resources;
   spinlock_lock(&process->lock);
+
   // TODO: If multi threads are running on this process, kill them.
   if (process->threads.size > 1) {
     spinlock_unlock(&process->lock);
@@ -352,15 +352,15 @@ void process_exit(int32 exit_code) {
 
   tcb_t* removed_thread = hash_table_remove(&process->threads, thread->id);
   ASSERT(removed_thread == thread);
-  // Thread will use kernel page table after this line.
 
   // TODO: hand over children processes to kernel main.
 
   process->exit_code = exit_code;
   process->status = PROCESS_EXIT;
 
-  destroy_process(process);
+  release_process_resources(process);
 
+  // Thread will use kernel page table after this line.
   thread->process = nullptr;
   spinlock_unlock(&process->lock);
 
@@ -377,13 +377,20 @@ void process_exit(int32 exit_code) {
   schedule_thread_exit();
 }
 
-// Destroy a process and release all its resources.
-void destroy_process(pcb_t* process) {
+// Release process resources, except page directory.
+void release_process_resources(pcb_t* process) {
   bitmap_destroy(&process->user_thread_stack_indexes);
 
   hash_table_clear(&process->exit_children_processes);
   hash_table_destroy(&process->exit_children_processes);
 
-  monitor_printf("destroy process %d pages \n", process->id);
   release_user_space_pages();
+}
+
+// The final step of destroying a process:
+//  - Recycle the page directory frame;
+//  - Release process struct;
+void destroy_process(pcb_t* process) {
+  release_phy_frame(process->page_dir.page_dir_entries_phy);
+  kfree(process);
 }

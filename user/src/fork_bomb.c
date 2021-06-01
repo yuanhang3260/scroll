@@ -1,6 +1,6 @@
 #include "common/common.h"
 #include "syscall/syscall.h"
 
-void main(uint32 argc, char* argv[]) {
-  fork();
+int main(uint32 argc, char* argv[]) {
+  return 0;
 }

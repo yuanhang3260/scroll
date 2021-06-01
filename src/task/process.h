@@ -73,6 +73,7 @@ void remove_process_thread(pcb_t* process, struct task_struct* thread);
 
 void add_child_process(pcb_t* parent, pcb_t* child);
 
+void release_process_resources(pcb_t* process);
 void destroy_process(pcb_t* process);
 
 // syscalls implementation

@@ -3,6 +3,19 @@ OBJ_DIR=lib
 BIN_DIR=bin
 USER_DIR=user
 
+OBJ_DIRS = \
+	${OBJ_DIR}/common \
+	${OBJ_DIR}/monitor \
+	${OBJ_DIR}/interrupt \
+	${OBJ_DIR}/mem \
+	${OBJ_DIR}/task \
+	${OBJ_DIR}/syscall \
+	${OBJ_DIR}/sync \
+	${OBJ_DIR}/fs \
+	${OBJ_DIR}/elf \
+	${OBJ_DIR}/driver \
+	${OBJ_DIR}/utils \
+
 OBJS_C = \
 	$(OBJ_DIR)/main.o \
 	$(OBJ_DIR)/common/common.o \
@@ -62,6 +75,7 @@ all: image
 prepare: ${SRC_DIR}/*
 	mkdir -p $(BIN_DIR)
 	mkdir -p $(OBJ_DIR)
+	mkdir -p ${OBJ_DIRS}
 
 image: prepare mbr loader kernel disk
 	rm -rf scroll.img && bximage -hd -mode="flat" -size=3 -q scroll.img 1>/dev/null
@@ -94,131 +108,99 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c
-	mkdir -p $(OBJ_DIR)/common
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c $(SRC_DIR)/common/%.h
-	mkdir -p $(OBJ_DIR)/common
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.S
-	mkdir -p $(OBJ_DIR)/interrupt
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/monitor/%.o: $(SRC_DIR)/monitor/%.c
-	mkdir -p $(OBJ_DIR)/monitor
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/monitor/%.o: $(SRC_DIR)/monitor/%.c $(SRC_DIR)/monitor/%.h
-	mkdir -p $(OBJ_DIR)/monitor
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.c
-	mkdir -p $(OBJ_DIR)/interrupt
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.c $(SRC_DIR)/interrupt/%.h
-	mkdir -p $(OBJ_DIR)/interrupt
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/interrupt/%.o: $(SRC_DIR)/interrupt/%.S
-	mkdir -p $(OBJ_DIR)/interrupt
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/mem/%.o: $(SRC_DIR)/mem/%.c
-	mkdir -p $(OBJ_DIR)/mem
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/mem/%.o: $(SRC_DIR)/mem/%.c $(SRC_DIR)/mem/%.h
-	mkdir -p $(OBJ_DIR)/mem
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/mem/%.o: $(SRC_DIR)/mem/%.S
-	mkdir -p $(OBJ_DIR)/mem
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/task/%.o: $(SRC_DIR)/task/%.c
-	mkdir -p $(OBJ_DIR)/task
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/task/%.o: $(SRC_DIR)/task/%.c $(SRC_DIR)/task/%.h
-	mkdir -p $(OBJ_DIR)/task
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/task/%.o: $(SRC_DIR)/task/%.S
-	mkdir -p $(OBJ_DIR)/task
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/syscall/%.o: $(SRC_DIR)/syscall/%.c
-	mkdir -p $(OBJ_DIR)/syscall
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/syscall/%.o: $(SRC_DIR)/syscall/%.c $(SRC_DIR)/syscall/%.h
-	mkdir -p $(OBJ_DIR)/syscall
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/syscall/%.o: $(SRC_DIR)/syscall/%.S
-	mkdir -p $(OBJ_DIR)/syscall
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.c
-	mkdir -p $(OBJ_DIR)/sync
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.c $(SRC_DIR)/sync/%.h
-	mkdir -p $(OBJ_DIR)/sync
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/sync/%.o: $(SRC_DIR)/sync/%.S
-	mkdir -p $(OBJ_DIR)/sync
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.c
-	mkdir -p $(OBJ_DIR)/fs
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.c $(SRC_DIR)/fs/%.h
-	mkdir -p $(OBJ_DIR)/fs
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/fs/%.o: $(SRC_DIR)/fs/%.S
-	mkdir -p $(OBJ_DIR)/fs
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.c
-	mkdir -p $(OBJ_DIR)/elf
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.c $(SRC_DIR)/elf/%.h
-	mkdir -p $(OBJ_DIR)/elf
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/elf/%.o: $(SRC_DIR)/elf/%.S
-	mkdir -p $(OBJ_DIR)/elf
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/driver/%.o: $(SRC_DIR)/driver/%.c
-	mkdir -p $(OBJ_DIR)/driver
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/driver/%.o: $(SRC_DIR)/driver/%.c $(SRC_DIR)/driver/%.h
-	mkdir -p $(OBJ_DIR)/driver
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/driver/%.o: $(SRC_DIR)/driver/%.S
-	mkdir -p $(OBJ_DIR)/driver
 	$(ASM) $(ASFLAGS) $< -o $@
 
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c
-	mkdir -p $(OBJ_DIR)/utils
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.c $(SRC_DIR)/utils/%.h
-	mkdir -p $(OBJ_DIR)/utils
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/utils/%.o: $(SRC_DIR)/utils/%.S
-	mkdir -p $(OBJ_DIR)/utils
 	$(ASM) $(ASFLAGS) $< -o $@
 
 
