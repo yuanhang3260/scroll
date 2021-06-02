@@ -62,6 +62,8 @@ typedef struct process_struct pcb_t;
 
 
 // ****************************************************************************
+void init_process_manager();
+
 struct process_struct* create_process(char* name, uint8 is_kernel_process);
 
 struct task_struct* create_new_kernel_thread(pcb_t* process, char* name, void* function);

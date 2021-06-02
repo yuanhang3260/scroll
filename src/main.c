@@ -11,7 +11,7 @@
 #include "driver/hard_disk.h"
 #include "driver/keyboard.h"
 #include "utils/debug.h"
-#include "utils/hash_table.h"
+#include "utils/id_pool.h"
 
 char* welcome = " welcome to scroll kernel\n";
 
@@ -40,6 +40,8 @@ int main() {
 
   init_keyboard();
 
+  init_task_manager();
+  init_process_manager();
   init_scheduler();
 
   // Never should reach here.

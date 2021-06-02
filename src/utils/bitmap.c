@@ -8,17 +8,25 @@
 
 bitmap_t bitmap_create(uint32* array, int total_bits) {
   bitmap_t ret;
-  ret.total_bits = total_bits;
-  ret.array_size = total_bits / 32;
-  if (array == nullptr) {
-    array = (uint32*)kmalloc(ret.array_size * 4);
-    //monitor_printf("alloc bitmap array %x\n", array);
-    ret.alloc_array = true;
-  } else {
-    ret.alloc_array = false;
-  }
-  ret.array = array;
+  bitmap_init(&ret, array, total_bits);
   return ret;
+}
+
+void bitmap_init(bitmap_t* this, uint32* array, int total_bits) {
+  this->total_bits = total_bits;
+  this->array_size = total_bits / 32;
+  if (array == nullptr) {
+    array = (uint32*)kmalloc(this->array_size * 4);
+    //monitor_printf("alloc bitmap array %x\n", array);
+    this->alloc_array = true;
+  } else {
+    this->alloc_array = false;
+  }
+
+  for (int32 i = 0; i < this->array_size; i++) {
+    array[i] = 0;
+  }
+  this->array = array;
 }
 
 void bitmap_set_bit(bitmap_t* this, uint32 bit) {
@@ -70,6 +78,27 @@ void bitmap_clear(bitmap_t* this) {
   for (uint32 i = 0; i < this->array_size; i++) {
     this->array[i] = 0;
   }
+}
+
+bool bitmap_expand(bitmap_t* this, uint32 expand_size) {
+  uint32 new_size = expand_size;
+  uint32 new_array_size = new_size / 32;
+  uint32* array = (uint32*)kmalloc(new_array_size * 4);
+  for (int32 i = 0; i < new_array_size; i++) {
+    array[i] = 0;
+  }
+  for (int32 i = 0; i < this->array_size; i++) {
+    array[i] = this->array[i];
+  }
+
+  if (this->alloc_array) {
+    kfree(this->array);
+  }
+  this->total_bits = new_size;
+  this->array_size = new_array_size;
+  this->alloc_array = true;
+  this->array = array;
+  return true;
 }
 
 void bitmap_destroy(bitmap_t* this) {

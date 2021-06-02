@@ -60,6 +60,7 @@ OBJS_C = \
 	$(OBJ_DIR)/utils/linked_list.o \
 	$(OBJ_DIR)/utils/hash_table.o \
 	$(OBJ_DIR)/utils/string.o \
+	$(OBJ_DIR)/utils/id_pool.o \
 
 OBJS_ASM = \
 

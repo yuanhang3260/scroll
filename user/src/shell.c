@@ -87,6 +87,14 @@ static int32 run_program() {
   }
 }
 
+static void clear_screen() {
+  move_cursor(0, -25);
+  for (int i = 0; i < 25; i++) {
+    printf(blank_line);
+  }
+  move_cursor(0, -25);
+}
+
 static int32 run_shell() {
   cmd_end_index = 0;
   cmd_buffer[cmd_end_index] = '\0';
@@ -100,6 +108,7 @@ static int32 run_shell() {
       int32 c = read_char();
 
       if (c < 128) {
+        //printf("%d", c);
         if (c == '\b') {
           if (line_cursor_index - 3 == 0) {
             continue;
@@ -114,6 +123,9 @@ static int32 run_shell() {
           printf(cmd_buffer + (line_cursor_index - 3));
           printf(" ");
           move_cursor(-(cmd_end_index + 1 - (line_cursor_index - 3)), 0);
+        } if (c == 12) {
+          clear_screen();
+          break;
         } else if (c == '\n') {
           if (cmd_end_index == 0) {
             printf("\n");
@@ -122,16 +134,13 @@ static int32 run_shell() {
             printf("\n");
             return 0;
           } else if (strcmp("clear", cmd_buffer) == 0) {
-            move_cursor(0, -25);
-            for (int i = 0; i < 25; i++) {
-              printf(blank_line);
-            }
-            move_cursor(0, -25);
+            clear_screen();
+            break;
           } else {
             run_program();
           }
           break;
-        } else {
+        } else if (c >= 32) {
           for (int32 i = cmd_end_index - 1; i >= (line_cursor_index - 3); i--) {
             cmd_buffer[i + 1] = cmd_buffer[i];
           }

@@ -6,11 +6,16 @@
 #include "mem/kheap.h"
 #include "mem/gdt.h"
 #include "common/stdlib.h"
+#include "utils/id_pool.h"
 
 extern void syscall_fork_exit();
 extern void switch_to_user_mode();
 
-static uint32 next_thread_id = 0;
+static id_pool_t thread_id_pool;
+
+void init_task_manager() {
+  id_pool_init(&thread_id_pool, 2048, 32768);
+}
 
 static void kernel_thread(thread_func* function) {
   function();
@@ -29,7 +34,11 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
     memset(thread, 0, KERNEL_STACK_SIZE);
   }
 
-  thread->id = next_thread_id++;
+  uint32 id;
+  if (!id_pool_allocate_id(&thread_id_pool, &id)) {
+    return nullptr;
+  }
+  thread->id = id;
   if (name != nullptr) {
     strcpy(thread->name, name);
   } else {
@@ -157,7 +166,10 @@ tcb_t* fork_crt_thread() {
   }
   memcpy(thread, get_crt_thread(), KERNEL_STACK_SIZE);
 
-  thread->id = next_thread_id++;
+  uint32 id;
+  if (!id_pool_allocate_id(&thread_id_pool, &id)) {
+    return nullptr;
+  }
   char buf[32];
   sprintf(buf, "thread-%u", thread->id);
   strcpy(thread->name, buf);
@@ -174,4 +186,9 @@ tcb_t* fork_crt_thread() {
   switch_stack->thread_entry_eip = (uint32)syscall_fork_exit;
 
   return thread;
+}
+
+void destroy_thread(tcb_t* thread) {
+  id_pool_free_id(&thread_id_pool, thread->id);
+  kfree(thread);
 }

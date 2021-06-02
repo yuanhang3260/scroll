@@ -157,7 +157,7 @@ void page_fault_handler(isr_params_t params) {
   //  "page fault: %x, present %d, write %d, user-mode %d, reserved %d\n",
   //  faulting_address, present, rw, user_mode, reserved);
 
-  map_page(faulting_address);
+  map_page(faulting_address / PAGE_SIZE * PAGE_SIZE);
   reload_page_directory(current_page_directory);
 }
 

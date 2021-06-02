@@ -72,6 +72,8 @@ typedef struct switch_stack switch_stack_t;
 
 
 // ****************************************************************************
+void init_task_manager();
+
 // Create a new thread.
 tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc, char** argv,
     uint8 user_thread, uint32 priority);
@@ -80,5 +82,7 @@ uint32 prepare_user_stack(
     tcb_t* thread, uint32 stack_top, uint32 argc, char** argv, uint32 return_addr);
 
 tcb_t* fork_crt_thread();
+
+void destroy_thread(tcb_t* thread);
 
 #endif

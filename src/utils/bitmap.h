@@ -14,6 +14,8 @@ typedef struct bit_map {
 
 bitmap_t bitmap_create(uint32* array, int total_bits);
 
+void bitmap_init(bitmap_t* this, uint32* array, int total_bits);
+
 void bitmap_set_bit(bitmap_t* this, uint32 bit);
 
 void bitmap_clear_bit(bitmap_t* this, uint32 bit);
@@ -21,6 +23,8 @@ void bitmap_clear_bit(bitmap_t* this, uint32 bit);
 bool bitmap_test_bit(bitmap_t* this, uint32 bit);
 
 void bitmap_clear(bitmap_t* this);
+
+bool bitmap_expand(bitmap_t* this, uint32 expand_size);
 
 void bitmap_destroy(bitmap_t* this);
 

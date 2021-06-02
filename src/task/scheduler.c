@@ -49,7 +49,6 @@ static bool main_thread_in_ready_queue = false;
 static bool multi_task_enabled = false;
 
 // *************************************************************************************************
-static void destroy_thread(thread_node_t* thread_node);
 static void kernel_main_thread();
 static void kernel_clean_thread();
 static void kernel_init_thread();
@@ -138,7 +137,7 @@ static void kernel_clean_thread() {
         linked_list_remove(&dead_tasks_receiver, head);
         tcb_t* thread = (tcb_t*)head->ptr;
         //monitor_printf("clean thread %d\n", thread->id);
-        kfree(thread);
+        destroy_thread(thread);
         kfree(head);
       }
     }

@@ -11,15 +11,24 @@
 #include "utils/string.h"
 #include "utils/debug.h"
 #include "utils/hash_table.h"
+#include "utils/id_pool.h"
 
-static uint32 next_pid = 0;
+static id_pool_t process_id_pool;
 
 // ****************************************************************************
+void init_process_manager() {
+  id_pool_init(&process_id_pool, 1024, 16384);
+}
+
 pcb_t* create_process(char* name, uint8 is_kernel_process) {
   pcb_t* process = (pcb_t*)kmalloc(sizeof(pcb_t));
   memset(process, 0, sizeof(pcb_t));
 
-  process->id = next_pid++;
+  uint32 id;
+  if (!id_pool_allocate_id(&process_id_pool, &id)) {
+    return nullptr;
+  }
+  process->id = id;
   if (name != nullptr) {
     strcpy(process->name, name);
   } else {
@@ -284,6 +293,11 @@ int32 process_wait(uint32 pid, uint32* status) {
 
   spinlock_lock(&process->lock);
 
+  if (pid > 0 && hash_table_get(&process->children_processes, pid) == nullptr) {
+    spinlock_unlock(&process->lock);
+    return -1;
+  }
+
   // If wait for any child, set parent's waiting_child_pid as pid of itself.
   process->waiting_child_pid = (pid > 0 ? pid : process->id);
 
@@ -392,5 +406,6 @@ void release_process_resources(pcb_t* process) {
 //  - Release process struct;
 void destroy_process(pcb_t* process) {
   release_phy_frame(process->page_dir.page_dir_entries_phy);
+  id_pool_free_id(&process_id_pool, process->id);
   kfree(process);
 }

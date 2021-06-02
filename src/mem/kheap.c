@@ -280,7 +280,11 @@ static void* kmalloc_impl(uint32 size, uint8 align) {
   if (size == 0) {
     return 0;
   }
-  return alloc(&kheap, size, (uint8)align);
+  void* ptr = alloc(&kheap, size, (uint8)align);
+  if (ptr == nullptr) {
+    PANIC();
+  }
+  return ptr;
 }
 
 void* kmalloc(uint32 size) {
