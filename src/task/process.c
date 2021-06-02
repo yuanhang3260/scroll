@@ -402,7 +402,8 @@ void release_process_resources(pcb_t* process) {
 }
 
 // The final step of destroying a process:
-//  - Recycle the page directory frame;
+//  - Release page directory frame;
+//  - Return pid;
 //  - Release process struct;
 void destroy_process(pcb_t* process) {
   release_phy_frame(process->page_dir.page_dir_entries_phy);
