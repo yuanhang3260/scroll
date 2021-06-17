@@ -97,29 +97,20 @@ interrupt_exit:
   iret
 
 
-; ********************************* irq ************************************** ;
-%macro DEFINE_IRQ 2
-  global irq%1
-  irq%1:
-    cli
-    push byte 0
-    push byte %2
-    jmp isr_common_stub
-%endmacro
-
-DEFINE_IRQ   0,    32
-DEFINE_IRQ   1,    33
-DEFINE_IRQ   2,    34
-DEFINE_IRQ   3,    35
-DEFINE_IRQ   4,    36
-DEFINE_IRQ   5,    37
-DEFINE_IRQ   6,    38
-DEFINE_IRQ   7,    39
-DEFINE_IRQ   8,    40
-DEFINE_IRQ   9,    41
-DEFINE_IRQ  10,    42
-DEFINE_IRQ  11,    43
-DEFINE_IRQ  12,    44
-DEFINE_IRQ  13,    45
-DEFINE_IRQ  14,    46
-DEFINE_IRQ  15,    47
+; ********************************* external interrupts ************************************** ;
+DEFINE_ISR_NOERRCODE   32
+DEFINE_ISR_NOERRCODE   33
+DEFINE_ISR_NOERRCODE   34
+DEFINE_ISR_NOERRCODE   35
+DEFINE_ISR_NOERRCODE   36
+DEFINE_ISR_NOERRCODE   37
+DEFINE_ISR_NOERRCODE   38
+DEFINE_ISR_NOERRCODE   39
+DEFINE_ISR_NOERRCODE   40
+DEFINE_ISR_NOERRCODE   41
+DEFINE_ISR_NOERRCODE   42
+DEFINE_ISR_NOERRCODE   43
+DEFINE_ISR_NOERRCODE   44
+DEFINE_ISR_NOERRCODE   45
+DEFINE_ISR_NOERRCODE   46
+DEFINE_ISR_NOERRCODE   47

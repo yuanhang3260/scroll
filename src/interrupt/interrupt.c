@@ -22,6 +22,7 @@ void init_idt() {
 
   memset(&idt_entries, 0, sizeof(idt_entry_t) * 256);
 
+  // exceptions
   set_idt_gate(0, (uint32)isr0 , SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
   set_idt_gate(1, (uint32)isr1 , SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
   set_idt_gate(2, (uint32)isr2 , SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
@@ -55,23 +56,25 @@ void init_idt() {
   set_idt_gate(30, (uint32)isr30, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
   set_idt_gate(31, (uint32)isr31, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
 
-  set_idt_gate(32, (uint32)irq0, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(33, (uint32)irq1, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(34, (uint32)irq2, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(35, (uint32)irq3, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(36, (uint32)irq4, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(37, (uint32)irq5, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(38, (uint32)irq6, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(39, (uint32)irq7, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(40, (uint32)irq8, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(41, (uint32)irq9, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(42, (uint32)irq10, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(43, (uint32)irq11, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(44, (uint32)irq12, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(45, (uint32)irq13, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(46, (uint32)irq14, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
-  set_idt_gate(47, (uint32)irq15, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  // interrupts
+  set_idt_gate(32, (uint32)isr32, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(33, (uint32)isr33, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(34, (uint32)isr34, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(35, (uint32)isr35, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(36, (uint32)isr36, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(37, (uint32)isr37, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(38, (uint32)isr38, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(39, (uint32)isr39, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(40, (uint32)isr40, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(41, (uint32)isr41, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(42, (uint32)isr42, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(43, (uint32)isr43, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(44, (uint32)isr44, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(45, (uint32)isr45, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(46, (uint32)isr46, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
+  set_idt_gate(47, (uint32)isr47, SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
 
+  // soft int
   set_idt_gate(SYSCALL_INT_NUM, (uint32)syscall_entry , SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);
 
   // refresh idt
