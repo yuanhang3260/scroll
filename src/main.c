@@ -28,7 +28,6 @@ int main() {
   print_welcome();
 
   init_idt();
-  enable_interrupt();
   init_timer(TIMER_FREQUENCY);
 
   init_paging();
