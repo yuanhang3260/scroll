@@ -57,6 +57,27 @@ DEFINE_ISR_NOERRCODE  29
 DEFINE_ISR_NOERRCODE  30
 DEFINE_ISR_NOERRCODE  31
 
+; ********************************* external interrupts ************************************** ;
+DEFINE_ISR_NOERRCODE   32
+DEFINE_ISR_NOERRCODE   33
+DEFINE_ISR_NOERRCODE   34
+DEFINE_ISR_NOERRCODE   35
+DEFINE_ISR_NOERRCODE   36
+DEFINE_ISR_NOERRCODE   37
+DEFINE_ISR_NOERRCODE   38
+DEFINE_ISR_NOERRCODE   39
+DEFINE_ISR_NOERRCODE   40
+DEFINE_ISR_NOERRCODE   41
+DEFINE_ISR_NOERRCODE   42
+DEFINE_ISR_NOERRCODE   43
+DEFINE_ISR_NOERRCODE   44
+DEFINE_ISR_NOERRCODE   45
+DEFINE_ISR_NOERRCODE   46
+DEFINE_ISR_NOERRCODE   47
+
+
+
+; ************************************* isr_common_stub **************************************** ;
 [EXTERN isr_handler]
 
 ; This is our common ISR stub. It saves the processor state, sets
@@ -95,22 +116,3 @@ interrupt_exit:
   sti
   ; pop cs, eip, eflags, user_ss, and user_esp by processor
   iret
-
-
-; ********************************* external interrupts ************************************** ;
-DEFINE_ISR_NOERRCODE   32
-DEFINE_ISR_NOERRCODE   33
-DEFINE_ISR_NOERRCODE   34
-DEFINE_ISR_NOERRCODE   35
-DEFINE_ISR_NOERRCODE   36
-DEFINE_ISR_NOERRCODE   37
-DEFINE_ISR_NOERRCODE   38
-DEFINE_ISR_NOERRCODE   39
-DEFINE_ISR_NOERRCODE   40
-DEFINE_ISR_NOERRCODE   41
-DEFINE_ISR_NOERRCODE   42
-DEFINE_ISR_NOERRCODE   43
-DEFINE_ISR_NOERRCODE   44
-DEFINE_ISR_NOERRCODE   45
-DEFINE_ISR_NOERRCODE   46
-DEFINE_ISR_NOERRCODE   47
