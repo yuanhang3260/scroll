@@ -40,7 +40,7 @@ typedef struct idt_ptr_struct idt_ptr_t;
 
 void init_idt();
 
-// ******************************** isr ****************************************
+// ******************************** exceptions ****************************************
 extern void isr0();
 extern void isr1();
 extern void isr2();
@@ -74,20 +74,7 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
-// argument struct for common isr_handler
-typedef struct isr_params {
-  uint32 ds;
-  uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
-  uint32 int_num;
-  uint32 err_code;
-  uint32 eip, cs, eflags, user_esp, user_ss;
-} isr_params_t;
-
-typedef void (*isr_t)(isr_params_t);
-void isr_handler(isr_params_t regs);
-void register_interrupt_handler(uint8 n, isr_t handler);
-
-// ******************************** irq ****************************************
+// ******************************** interrupts ****************************************
 #define IRQ0_INT_NUM 32
 #define IRQ1_INT_NUM 33
 #define IRQ2_INT_NUM 34
@@ -123,6 +110,21 @@ extern void isr44();
 extern void isr45();
 extern void isr46();
 extern void isr47();
+
+
+// ******************************** handler ****************************************
+// argument struct for common isr_handler
+typedef struct isr_params {
+  uint32 ds;
+  uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
+  uint32 int_num;
+  uint32 err_code;
+  uint32 eip, cs, eflags, user_esp, user_ss;
+} isr_params_t;
+
+typedef void (*isr_t)(isr_params_t);
+void isr_handler(isr_params_t regs);
+void register_interrupt_handler(uint8 n, isr_t handler);
 
 void enable_interrupt();
 void disable_interrupt();
