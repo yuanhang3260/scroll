@@ -21,6 +21,7 @@ void init_idt() {
   idt_ptr.base = (uint32)(&idt_entries);
 
   memset(&idt_entries, 0, sizeof(idt_entry_t) * 256);
+  memset(&interrupt_handlers, 0, sizeof(isr_t) * 256);
 
   // exceptions
   set_idt_gate(0, (uint32)isr0 , SELECTOR_K_CODE, IDT_GATE_ATTR_DPL3);

@@ -221,70 +221,6 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
   schedule_thread_exit();
 }
 
-// // Process wait
-// int32 process_wait(uint32 pid, uint32* status) {
-//   thread_node_t* thread_node = get_crt_thread_node();
-//   tcb_t* thread = (tcb_t*)thread_node->ptr;
-//   pcb_t* process = thread->process;
-
-//   pcb_t* child = hash_table_get(&process->children_processes, pid);
-//   ASSERT(child != nullptr);
-//   spinlock_lock(&child->lock);
-//   while (1) {
-//     if (child->status == PROCESS_EXIT || child->status == PROCESS_EXIT_ZOMBIE) {
-//       break;
-//     }
-//     child->waiting_parent = thread_node;
-//     schedule_mark_thread_block();
-//     spinlock_unlock(&child->lock);
-//     schedule_thread_yield();
-
-//     spinlock_lock(&child->lock);
-//   }
-//   // Reap child exit code and release pcb struct.
-//   if (status != nullptr) {
-//     *status = child->exit_code;
-//   }
-//   spinlock_unlock(&child->lock);
-
-//   // Add child process to dead list
-//   add_dead_process(child);
-
-//   return 0;
-// }
-
-// // Process eixts:
-// //  - All remaining children processes should be adopted by kernel main process;
-// //  - If parent is waiting, wake it up and set exit status;
-// //  - release all resources (except pcb);
-// void process_exit(int32 exit_code) {
-//   thread_node_t* thread_node = get_crt_thread_node();
-//   tcb_t* thread = (tcb_t*)thread_node->ptr;
-//   pcb_t* process = thread->process;
-
-//   // TODO: hand over children processes to kernel main.
-
-//   // Set process exit info, and wake up waiting parent if exists.
-//   spinlock_lock(&process->lock);
-//   if (process->threads.size > 1) {
-//     // TODO: If multi threads are running on this process, mark them TAKS_DEAD.
-//     spinlock_unlock(&process->lock);
-//     return;
-//   }
-
-//   process->exit_code = exit_code;
-//   process->status = PROCESS_EXIT;
-//   if (process->waiting_parent != nullptr) {
-//     // Notify parent.
-//     add_thread_node_to_schedule(process->waiting_parent);
-//   } else {
-//     //process->status = PROCESS_EXIT_ZOMBIE;
-//   }
-//   spinlock_unlock(&process->lock);
-
-//   schedule_thread_exit();
-// }
-
 // Process wait
 int32 process_wait(uint32 pid, uint32* status) {
   thread_node_t* thread_node = get_crt_thread_node();
@@ -395,7 +331,7 @@ void process_exit(int32 exit_code) {
 void release_process_resources(pcb_t* process) {
   bitmap_destroy(&process->user_thread_stack_indexes);
 
-  hash_table_clear(&process->exit_children_processes);
+  hash_table_clear(&process->threads);
   hash_table_destroy(&process->exit_children_processes);
 
   release_user_space_pages();
@@ -410,3 +346,67 @@ void destroy_process(pcb_t* process) {
   id_pool_free_id(&process_id_pool, process->id);
   kfree(process);
 }
+
+// // Process wait
+// int32 process_wait(uint32 pid, uint32* status) {
+//   thread_node_t* thread_node = get_crt_thread_node();
+//   tcb_t* thread = (tcb_t*)thread_node->ptr;
+//   pcb_t* process = thread->process;
+
+//   pcb_t* child = hash_table_get(&process->children_processes, pid);
+//   ASSERT(child != nullptr);
+//   spinlock_lock(&child->lock);
+//   while (1) {
+//     if (child->status == PROCESS_EXIT || child->status == PROCESS_EXIT_ZOMBIE) {
+//       break;
+//     }
+//     child->waiting_parent = thread_node;
+//     schedule_mark_thread_block();
+//     spinlock_unlock(&child->lock);
+//     schedule_thread_yield();
+
+//     spinlock_lock(&child->lock);
+//   }
+//   // Reap child exit code and release pcb struct.
+//   if (status != nullptr) {
+//     *status = child->exit_code;
+//   }
+//   spinlock_unlock(&child->lock);
+
+//   // Add child process to dead list
+//   add_dead_process(child);
+
+//   return 0;
+// }
+
+// // Process eixts:
+// //  - All remaining children processes should be adopted by kernel main process;
+// //  - If parent is waiting, wake it up and set exit status;
+// //  - release all resources (except pcb);
+// void process_exit(int32 exit_code) {
+//   thread_node_t* thread_node = get_crt_thread_node();
+//   tcb_t* thread = (tcb_t*)thread_node->ptr;
+//   pcb_t* process = thread->process;
+
+//   // TODO: hand over children processes to kernel main.
+
+//   // Set process exit info, and wake up waiting parent if exists.
+//   spinlock_lock(&process->lock);
+//   if (process->threads.size > 1) {
+//     // TODO: If multi threads are running on this process, mark them TAKS_DEAD.
+//     spinlock_unlock(&process->lock);
+//     return;
+//   }
+
+//   process->exit_code = exit_code;
+//   process->status = PROCESS_EXIT;
+//   if (process->waiting_parent != nullptr) {
+//     // Notify parent.
+//     add_thread_node_to_schedule(process->waiting_parent);
+//   } else {
+//     //process->status = PROCESS_EXIT_ZOMBIE;
+//   }
+//   spinlock_unlock(&process->lock);
+
+//   schedule_thread_exit();
+// }

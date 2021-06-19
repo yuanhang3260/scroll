@@ -4,7 +4,7 @@
 #include "common/common.h"
 #include "utils/ordered_array.h"
 
-#define KHEAP_START          0xC0900000
+#define KHEAP_START          0xC0C00000
 #define KHEAP_MIN_SIZE       0x300000
 #define KHEAP_MAX            0xE0000000
 
