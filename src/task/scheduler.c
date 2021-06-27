@@ -87,7 +87,7 @@ void init_scheduler() {
   // Kick off!
   asm volatile (
    "movl %0, %%esp; \
-    jmp resume_thread": : "g" (main_thread->self_kstack) : "memory");
+    jmp resume_thread": : "g" (main_thread->start_esp) : "memory");
 
   // Never should reach here!
   PANIC();

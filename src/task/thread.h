@@ -35,7 +35,7 @@ enum task_status {
 
 struct task_struct {
   // kernel stack pointer
-  void* self_kstack;
+  void* start_esp;
   uint32 id;
   char name[32];
   uint8 priority;

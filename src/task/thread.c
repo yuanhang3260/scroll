@@ -55,9 +55,9 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
   thread->stack_magic = THREAD_STACK_MAGIC;
 
   // Init thread stack.
-  thread->self_kstack =
+  thread->start_esp =
       (void*)thread + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
-  switch_stack_t* kthread_stack = (switch_stack_t*)thread->self_kstack;
+  switch_stack_t* kthread_stack = (switch_stack_t*)thread->start_esp;
 
   kthread_stack->edi = 0;
   kthread_stack->esi = 0;
@@ -80,7 +80,7 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
     kthread_stack->thread_entry_eip = (uint32)switch_to_user_mode;
 
     interrupt_stack_t* interrupt_stack =
-        (interrupt_stack_t*)((uint32)thread->self_kstack + sizeof(switch_stack_t));
+        (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
 
     // data segemnts
     interrupt_stack->ds = SELECTOR_U_DATA;
@@ -152,7 +152,7 @@ uint32 prepare_user_stack(
   //monitor_printf("%x return_addr = %x\n", stack_top, return_addr);
 
   interrupt_stack_t* interrupt_stack =
-      (interrupt_stack_t*)((uint32)thread->self_kstack + sizeof(switch_stack_t));
+      (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
   interrupt_stack->user_esp = stack_top;
   return stack_top;
 }
@@ -176,13 +176,13 @@ tcb_t* fork_crt_thread() {
 
   thread->ticks = 0;
 
-  thread->self_kstack =
+  thread->start_esp =
       (void*)thread + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
-  //monitor_printf("fork self_kstack = %x\n", thread->self_kstack);
+  //monitor_printf("fork start_esp = %x\n", thread->start_esp);
 
-  interrupt_stack_t* interrupt_stack = (interrupt_stack_t*)((uint32)thread->self_kstack + sizeof(switch_stack_t));
+  interrupt_stack_t* interrupt_stack = (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
 
-  switch_stack_t* switch_stack = (switch_stack_t*)thread->self_kstack;
+  switch_stack_t* switch_stack = (switch_stack_t*)thread->start_esp;
   switch_stack->thread_entry_eip = (uint32)syscall_fork_exit;
 
   return thread;
