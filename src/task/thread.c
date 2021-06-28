@@ -22,16 +22,11 @@ static void kernel_thread(thread_func* function) {
   schedule_thread_exit(0);
 }
 
-tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc, char** argv,
-    uint8 user_thread, uint32 priority) {
+tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 priority, uint8 user) {
   if (thread == nullptr) {
     // Allocate one page as tcb_t and kernel stack for each thread.
-    thread = (tcb_t*)kmalloc_aligned(KERNEL_STACK_SIZE);
-    // Map pages manually for kernel stack, to prevent double page fault while stack is growing.
-    for (int32 i = 0; i < KERNEL_STACK_SIZE / PAGE_SIZE; i++) {
-      map_page((uint32)thread + i * PAGE_SIZE);
-    }
-    memset(thread, 0, KERNEL_STACK_SIZE);
+    thread = (tcb_t*)kmalloc(sizeof(struct task_struct));
+    memset(thread, 0, sizeof(struct task_struct));
   }
 
   uint32 id;
@@ -55,20 +50,28 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
   thread->stack_magic = THREAD_STACK_MAGIC;
 
   // Init thread stack.
+  uint32 kernel_stack = (uint32)kmalloc_aligned(KERNEL_STACK_SIZE);
+  // Map pages manually for kernel stack, to prevent double page fault while stack is growing.
+  for (int32 i = 0; i < KERNEL_STACK_SIZE / PAGE_SIZE; i++) {
+    map_page(kernel_stack + i * PAGE_SIZE);
+  }
+  memset(thread, 0, KERNEL_STACK_SIZE);
+  thread->kernel_stack = kernel_stack;
+
   thread->start_esp =
-      (void*)thread + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
-  switch_stack_t* kthread_stack = (switch_stack_t*)thread->start_esp;
+      kernel_stack + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
+  switch_stack_t* switch_stack = (switch_stack_t*)thread->start_esp;
 
-  kthread_stack->edi = 0;
-  kthread_stack->esi = 0;
-  kthread_stack->ebp = 0;
-  kthread_stack->ebx = 0;
-  kthread_stack->edx = 0;
-  kthread_stack->ecx = 0;
-  kthread_stack->eax = 0;
+  switch_stack->edi = 0;
+  switch_stack->esi = 0;
+  switch_stack->ebp = 0;
+  switch_stack->ebx = 0;
+  switch_stack->edx = 0;
+  switch_stack->ecx = 0;
+  switch_stack->eax = 0;
 
-  kthread_stack->thread_entry_eip = (uint32)kernel_thread;
-  kthread_stack->function = function;
+  switch_stack->thread_entry_eip = (uint32)kernel_thread;
+  switch_stack->function = function;
 
   // For user thread, there are some more steps to do:
   //  - Prepare the kernel interrupt stack context for later to switch to user mode.
@@ -76,8 +79,8 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc,
   //  - Prepare the user stack:
   //    - 1. Copy args to stack;
   //    - 2. Set the return address as thread_exit syscall so that it can exit normally;
-  if (user_thread) {
-    kthread_stack->thread_entry_eip = (uint32)switch_to_user_mode;
+  if (user) {
+    switch_stack->thread_entry_eip = (uint32)switch_to_user_mode;
 
     interrupt_stack_t* interrupt_stack =
         (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
@@ -160,11 +163,15 @@ uint32 prepare_user_stack(
 tcb_t* fork_crt_thread() {
   tcb_t* crt_thread = get_crt_thread();
 
-  tcb_t* thread = (tcb_t*)kmalloc_aligned(KERNEL_STACK_SIZE);
+  tcb_t* thread = (tcb_t*)kmalloc(sizeof(struct task_struct));
   if (thread == nullptr) {
     return nullptr;
   }
-  memcpy(thread, get_crt_thread(), KERNEL_STACK_SIZE);
+  memset(thread, 0, sizeof(struct task_struct));
+
+  uint32 kernel_stack = (uint32)kmalloc_aligned(KERNEL_STACK_SIZE);
+  thread->kernel_stack = kernel_stack;
+  memcpy((void*)kernel_stack, (void*)get_crt_thread()->kernel_stack, KERNEL_STACK_SIZE);
 
   uint32 id;
   if (!id_pool_allocate_id(&thread_id_pool, &id)) {
@@ -177,7 +184,7 @@ tcb_t* fork_crt_thread() {
   thread->ticks = 0;
 
   thread->start_esp =
-      (void*)thread + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
+      kernel_stack + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
   //monitor_printf("fork start_esp = %x\n", thread->start_esp);
 
   interrupt_stack_t* interrupt_stack = (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
@@ -190,5 +197,6 @@ tcb_t* fork_crt_thread() {
 
 void destroy_thread(tcb_t* thread) {
   id_pool_free_id(&thread_id_pool, thread->id);
+  kfree((void*)thread->kernel_stack);
   kfree(thread);
 }

@@ -35,7 +35,8 @@ enum task_status {
 
 struct task_struct {
   // kernel stack pointer
-  void* start_esp;
+  uint32 start_esp;
+  uint32 kernel_stack;
   uint32 id;
   char name[32];
   uint8 priority;
@@ -75,8 +76,7 @@ typedef struct switch_stack switch_stack_t;
 void init_task_manager();
 
 // Create a new thread.
-tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 argc, char** argv,
-    uint8 user_thread, uint32 priority);
+tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 priority, uint8 user);
 
 uint32 prepare_user_stack(
     tcb_t* thread, uint32 stack_top, uint32 argc, char** argv, uint32 return_addr);

@@ -67,7 +67,7 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
 }
 
 tcb_t* create_new_kernel_thread(pcb_t* process, char* name, void* function) {
-  tcb_t* thread = init_thread(nullptr, name, function, 0, nullptr, false, THREAD_DEFAULT_PRIORITY);
+  tcb_t* thread = init_thread(nullptr, name, function, THREAD_DEFAULT_PRIORITY, false);
   add_process_thread(process, thread);
   return thread;
 }
@@ -75,8 +75,7 @@ tcb_t* create_new_kernel_thread(pcb_t* process, char* name, void* function) {
 tcb_t* create_new_user_thread(
     pcb_t* process, char* name, void* user_function, uint32 argc, char** argv) {
   // Create new thread on this process.
-  tcb_t* thread = init_thread(
-      nullptr, name, user_function, argc, argv, true, THREAD_DEFAULT_PRIORITY);
+  tcb_t* thread = init_thread(nullptr, name, user_function, THREAD_DEFAULT_PRIORITY, true);
   add_process_thread(process, thread);
 
   // Allocate a user space stack for this thread.
