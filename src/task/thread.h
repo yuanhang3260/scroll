@@ -35,7 +35,7 @@ enum task_status {
 
 struct task_struct {
   // kernel stack pointer
-  uint32 start_esp;
+  uint32 kernel_esp;
   uint32 kernel_stack;
   uint32 id;
   char name[32];

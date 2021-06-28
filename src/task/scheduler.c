@@ -87,7 +87,7 @@ void init_scheduler() {
   // Kick off!
   asm volatile (
    "movl %0, %%esp; \
-    jmp resume_thread": : "g" (main_thread->start_esp) : "memory");
+    jmp resume_thread": : "g" (main_thread->kernel_esp) : "memory");
 
   // Never should reach here!
   PANIC();
@@ -257,7 +257,7 @@ static void do_context_switch() {
   }
 
   // Setup env for next thread (and maybe a different process)
-  update_tss_esp((uint32)next_thread + KERNEL_STACK_SIZE);
+  update_tss_esp(next_thread->kernel_stack + KERNEL_STACK_SIZE);
   if (old_thread->process != next_thread->process) {
     process_switch(next_thread->process);
   }

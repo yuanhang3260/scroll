@@ -81,5 +81,5 @@ syscall_fork_exit:
   ; pop dummy values
   add esp, 8
 
-  ; pop cs, eip, eflags, user_ss, and user_esp by processor
+  ; pop eip, cs, eflags, user_esp and user_ss by processor
   iret

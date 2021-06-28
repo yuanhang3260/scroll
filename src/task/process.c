@@ -106,6 +106,7 @@ void add_process_thread(pcb_t* process, tcb_t* thread) {
 
 void remove_process_thread(pcb_t* process, tcb_t* thread) {
   spinlock_lock(&process->lock);
+  //monitor_printf("remove process %d thread %d\n", process->id, thread->id);
   tcb_t* removed_thread = hash_table_remove(&process->threads, thread->id);
   ASSERT(removed_thread == thread);
   thread->process = nullptr;

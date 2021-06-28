@@ -55,12 +55,12 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 prior
   for (int32 i = 0; i < KERNEL_STACK_SIZE / PAGE_SIZE; i++) {
     map_page(kernel_stack + i * PAGE_SIZE);
   }
-  memset(thread, 0, KERNEL_STACK_SIZE);
+  memset((void*)kernel_stack, 0, KERNEL_STACK_SIZE);
   thread->kernel_stack = kernel_stack;
 
-  thread->start_esp =
+  thread->kernel_esp =
       kernel_stack + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
-  switch_stack_t* switch_stack = (switch_stack_t*)thread->start_esp;
+  switch_stack_t* switch_stack = (switch_stack_t*)thread->kernel_esp;
 
   switch_stack->edi = 0;
   switch_stack->esi = 0;
@@ -83,7 +83,7 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 prior
     switch_stack->thread_entry_eip = (uint32)switch_to_user_mode;
 
     interrupt_stack_t* interrupt_stack =
-        (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
+        (interrupt_stack_t*)((uint32)thread->kernel_esp + sizeof(switch_stack_t));
 
     // data segemnts
     interrupt_stack->ds = SELECTOR_U_DATA;
@@ -155,7 +155,7 @@ uint32 prepare_user_stack(
   //monitor_printf("%x return_addr = %x\n", stack_top, return_addr);
 
   interrupt_stack_t* interrupt_stack =
-      (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
+      (interrupt_stack_t*)((uint32)thread->kernel_esp + sizeof(switch_stack_t));
   interrupt_stack->user_esp = stack_top;
   return stack_top;
 }
@@ -167,29 +167,34 @@ tcb_t* fork_crt_thread() {
   if (thread == nullptr) {
     return nullptr;
   }
-  memset(thread, 0, sizeof(struct task_struct));
-
-  uint32 kernel_stack = (uint32)kmalloc_aligned(KERNEL_STACK_SIZE);
-  thread->kernel_stack = kernel_stack;
-  memcpy((void*)kernel_stack, (void*)get_crt_thread()->kernel_stack, KERNEL_STACK_SIZE);
+  memcpy((void*)thread, (void*)get_crt_thread(), sizeof(struct task_struct));
 
   uint32 id;
   if (!id_pool_allocate_id(&thread_id_pool, &id)) {
     return nullptr;
   }
+  thread->id = id;
+
   char buf[32];
   sprintf(buf, "thread-%u", thread->id);
   strcpy(thread->name, buf);
 
   thread->ticks = 0;
 
-  thread->start_esp =
+  // allocate kernel stack
+  uint32 kernel_stack = (uint32)kmalloc_aligned(KERNEL_STACK_SIZE);
+  thread->kernel_stack = kernel_stack;
+  memcpy((void*)kernel_stack, (void*)crt_thread->kernel_stack, KERNEL_STACK_SIZE);
+
+  thread->kernel_esp =
       kernel_stack + KERNEL_STACK_SIZE - (sizeof(interrupt_stack_t) + sizeof(switch_stack_t));
-  //monitor_printf("fork start_esp = %x\n", thread->start_esp);
+  //monitor_printf("fork kernel_esp = %x\n", thread->kernel_esp);
 
-  interrupt_stack_t* interrupt_stack = (interrupt_stack_t*)((uint32)thread->start_esp + sizeof(switch_stack_t));
+  interrupt_stack_t* interrupt_stack =
+      (interrupt_stack_t*)(thread->kernel_esp + sizeof(switch_stack_t));
+  //monitor_printf("user eip = %x\n", interrupt_stack->eip);
 
-  switch_stack_t* switch_stack = (switch_stack_t*)thread->start_esp;
+  switch_stack_t* switch_stack = (switch_stack_t*)thread->kernel_esp;
   switch_stack->thread_entry_eip = (uint32)syscall_fork_exit;
 
   return thread;
