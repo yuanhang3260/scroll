@@ -48,8 +48,6 @@ struct task_struct {
   // user stack
   uint32 user_stack;
   int32 user_stack_index;
-  // boundary of tcb_t and thread stack.
-  uint32 stack_magic;
 };
 typedef struct task_struct tcb_t;
 

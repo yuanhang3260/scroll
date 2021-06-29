@@ -19,7 +19,7 @@ void init_task_manager() {
 
 static void kernel_thread(thread_func* function) {
   function();
-  schedule_thread_exit(0);
+  schedule_thread_exit();
 }
 
 tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 priority, uint8 user) {
@@ -47,7 +47,6 @@ tcb_t* init_thread(tcb_t* thread, char* name, thread_func function, uint32 prior
   thread->ticks = 0;
   thread->priority = priority;
   thread->user_stack_index = -1;
-  thread->stack_magic = THREAD_STACK_MAGIC;
 
   // Init thread stack.
   uint32 kernel_stack = (uint32)kmalloc_aligned(KERNEL_STACK_SIZE);
