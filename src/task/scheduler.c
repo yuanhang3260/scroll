@@ -270,14 +270,14 @@ void maybe_context_switch() {
   disable_interrupt();
   merge_ready_tasks();
 
-  uint32 need_context_switch = 0;
+  bool need_context_switch = false;
   if (ready_tasks.size > 0) {
     tcb_t* crt_thread = get_crt_thread();
     crt_thread->ticks++;
     // Current thread has run out of time slice, switch to next ready thread.
     if (crt_thread->ticks >= crt_thread->priority) {
       crt_thread->ticks = 0;
-      need_context_switch = 1;
+      need_context_switch = true;
     }
   }
 
@@ -319,9 +319,6 @@ void schedule_thread_yield() {
   merge_ready_tasks();
 
   //monitor_printf("thread %d yield\n", get_crt_thread()->id);
-
-  disable_interrupt();
-  merge_ready_tasks();
 
   // If no ready task in queue, wake up kernel main (cpu idle) thread.
   if (ready_tasks.size == 0) {
