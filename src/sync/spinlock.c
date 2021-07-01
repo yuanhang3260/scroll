@@ -10,7 +10,7 @@ void spinlock_init(spinlock_t* splock) {
 
 void spinlock_lock(spinlock_t *splock) {
   while (atomic_exchange(&splock->hold , LOCKED_YES) != LOCKED_NO) {
-    // on single-core processor, yield this thread.
+    // on single-core processor, spinlock downgrades to yieldlock.
     #ifdef SINGLE_PROCESSOR
       schedule_thread_yield();
     #else
