@@ -2,7 +2,7 @@
 #define SYNC_MUTEX_H
 
 #include "common/common.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "utils/linked_list.h"
 
 // Mutex is a blocking lock. If thread can not acquire lock, it adds itself to mutex's waiting
@@ -11,7 +11,7 @@ struct mutex {
   volatile uint32 hold;
   volatile struct linked_list_node* thread_node;
   linked_list_t waiting_task_queue;
-  spinlock_t splock;
+  yieldlock_t ydlock;
 };
 typedef struct mutex mutex_t;
 
