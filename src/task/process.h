@@ -4,7 +4,7 @@
 #include "task/thread.h"
 #include "mem/paging.h"
 #include "sync/mutex.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "utils/bitmap.h"
 #include "utils/linked_list.h"
 #include "utils/hash_table.h"
@@ -53,10 +53,10 @@ struct process_struct {
 
   // page directory
   page_directory_t page_dir;
-  spinlock_t page_dir_lock;
+  yieldlock_t page_dir_lock;
 
   // lock to protect this struct
-  spinlock_t lock;
+  yieldlock_t lock;
 };
 typedef struct process_struct pcb_t;
 

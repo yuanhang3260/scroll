@@ -1,12 +1,12 @@
 #include "monitor/monitor.h"
 #include "mem/kheap.h"
 #include "mem/paging.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "utils/debug.h"
 #include "utils/rand.h"
 
 static kheap_t kheap;
-static spinlock_t kheap_lock;
+static yieldlock_t kheap_lock;
 
 #define HEADER_SIZE (sizeof(kheap_block_header_t))
 #define FOOTER_SIZE (sizeof(kheap_block_footer_t))
@@ -272,7 +272,7 @@ uint32 kheap_validate_print(uint8 print) {
 }
 
 void init_kheap() {
-  spinlock_init(&kheap_lock);
+  yieldlock_init(&kheap_lock);
   kheap = create_kheap(KHEAP_START, KHEAP_START + KHEAP_MIN_SIZE, KHEAP_MAX, 0, 0);
 }
 
@@ -288,16 +288,16 @@ static void* kmalloc_impl(uint32 size, uint8 align) {
 }
 
 void* kmalloc(uint32 size) {
-  spinlock_lock(&kheap_lock);
+  yieldlock_lock(&kheap_lock);
   void* ptr = kmalloc_impl(size, 0);
-  spinlock_unlock(&kheap_lock);
+  yieldlock_unlock(&kheap_lock);
   return ptr;
 }
 
 void* kmalloc_aligned(uint32 size) {
-  spinlock_lock(&kheap_lock);
+  yieldlock_lock(&kheap_lock);
   void* ptr = kmalloc_impl(size, 1);
-  spinlock_unlock(&kheap_lock);
+  yieldlock_unlock(&kheap_lock);
   return ptr;
 }
 
@@ -305,9 +305,9 @@ void kfree(void* ptr) {
   if (ptr == nullptr) {
     return;
   }
-  spinlock_lock(&kheap_lock);
+  yieldlock_lock(&kheap_lock);
   free(&kheap, ptr);
-  spinlock_unlock(&kheap_lock);
+  yieldlock_unlock(&kheap_lock);
 }
 
 

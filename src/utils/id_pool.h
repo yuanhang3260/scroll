@@ -3,7 +3,7 @@
 
 #include "common/common.h"
 #include "common/global.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "utils/bitmap.h"
 
 // This is a thread-safe pool to allocate uint32 id.
@@ -12,7 +12,7 @@ struct id_pool {
   int32 max_size;
   int32 expand_size;
   bitmap_t id_map;
-  spinlock_t lock;
+  yieldlock_t lock;
 };
 typedef struct id_pool id_pool_t;
 

@@ -2,7 +2,7 @@
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "monitor/monitor.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "task/thread.h"
 #include "task/process.h"
 #include "task/scheduler.h"
@@ -18,15 +18,15 @@ page_directory_t* current_page_directory = 0;
 
 static bitmap_t phy_frames_map;
 static uint32 bitarray[PHYSICAL_MEM_SIZE / PAGE_SIZE / 32];
-static spinlock_t phy_frames_map_lock;
+static yieldlock_t phy_frames_map_lock;
 
 // copy-on-write frames' reference counts
 static bool copy_on_write_ready = false;
 static hash_table_t frame_cow_ref_counts;
-static spinlock_t frame_cow_ref_counts_lock;
+static yieldlock_t frame_cow_ref_counts_lock;
 
 // locks for page copy
-static spinlock_t page_copy_lock;
+static yieldlock_t page_copy_lock;
 
 void init_paging() {
   // Initialize phy_frames_map. Note we have already used the first 3MB for kernel initialization.
@@ -51,31 +51,31 @@ void init_paging() {
 }
 
 void init_paging_stage2() {
-  spinlock_init(&phy_frames_map_lock);
+  yieldlock_init(&phy_frames_map_lock);
 
   hash_table_init(&frame_cow_ref_counts);
-  spinlock_init(&frame_cow_ref_counts_lock);
+  yieldlock_init(&frame_cow_ref_counts_lock);
 
-  spinlock_init(&page_copy_lock);
+  yieldlock_init(&page_copy_lock);
 
   copy_on_write_ready = true;
 }
 
 int32 allocate_phy_frame() {
-  spinlock_lock(&phy_frames_map_lock);
+  yieldlock_lock(&phy_frames_map_lock);
   uint32 frame;
   if (!bitmap_allocate_first_free(&phy_frames_map, &frame)) {
-    spinlock_unlock(&phy_frames_map_lock);
+    yieldlock_unlock(&phy_frames_map_lock);
     return -1;
   }
-  spinlock_unlock(&phy_frames_map_lock);
+  yieldlock_unlock(&phy_frames_map_lock);
   return (int32)frame;
 }
 
 void release_phy_frame(uint32 frame) {
-  spinlock_lock(&phy_frames_map_lock);
+  yieldlock_lock(&phy_frames_map_lock);
   bitmap_clear_bit(&phy_frames_map, frame);
-  spinlock_unlock(&phy_frames_map_lock);
+  yieldlock_unlock(&phy_frames_map_lock);
 }
 
 void clear_page(uint32 addr) {
@@ -106,7 +106,7 @@ static int32 change_cow_frame_refcount(uint32 frame, int32 refcount_delta) {
     return 0;
   }
 
-  spinlock_lock(&frame_cow_ref_counts_lock);
+  yieldlock_lock(&frame_cow_ref_counts_lock);
   int32* cnt_ptr = hash_table_get(&frame_cow_ref_counts, frame);
   int32 old_cnt;
   int32 new_cnt;
@@ -131,7 +131,7 @@ static int32 change_cow_frame_refcount(uint32 frame, int32 refcount_delta) {
       hash_table_remove(&frame_cow_ref_counts, frame);
     }
   }
-  spinlock_unlock(&frame_cow_ref_counts_lock);
+  yieldlock_unlock(&frame_cow_ref_counts_lock);
   return old_cnt;
 }
 
@@ -234,11 +234,11 @@ static void map_page_with_frame_impl(uint32 virtual_addr, int32 frame) {
 
         // Do NOT kmalloc page for copying, because kmalloc may trigger another page fault
         // which will result in a deadlock.
-        spinlock_lock(&page_copy_lock);
+        yieldlock_lock(&page_copy_lock);
         void* copy_page = (void*)COPIED_PAGE_VADDR;
         map_page_with_frame_impl((uint32)copy_page, frame);
         memcpy(copy_page, (void*)(virtual_addr / PAGE_SIZE * PAGE_SIZE), PAGE_SIZE);
-        spinlock_unlock(&page_copy_lock);
+        yieldlock_unlock(&page_copy_lock);
         pte->frame = frame;
         pte->rw = 1;
 
@@ -255,11 +255,11 @@ static void map_page_with_frame_impl(uint32 virtual_addr, int32 frame) {
 
 static void map_page_with_frame(uint32 virtual_addr, int32 frame) {
   if (multi_task_is_enabled()) {
-    spinlock_lock(&get_crt_thread()->process->page_dir_lock);
+    yieldlock_lock(&get_crt_thread()->process->page_dir_lock);
   }
   map_page_with_frame_impl(virtual_addr, frame);
   if (multi_task_is_enabled()) {
-    spinlock_unlock(&get_crt_thread()->process->page_dir_lock);
+    yieldlock_unlock(&get_crt_thread()->process->page_dir_lock);
   }
 }
 

@@ -2,7 +2,7 @@
 #define SYNC_COND_VAR_H
 
 #include "common/common.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "utils/linked_list.h"
 
 // condition variable.
@@ -16,7 +16,7 @@ typedef bool (*cv_predicator_func)();
 
 // ****************************************************************************
 void cond_var_init(cond_var_t* cv);
-void cond_var_wait(cond_var_t* cv, spinlock_t* lock, cv_predicator_func predicator);
+void cond_var_wait(cond_var_t* cv, yieldlock_t* lock, cv_predicator_func predicator);
 void cond_var_notify(cond_var_t* cv);
 
 

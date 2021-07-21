@@ -3,7 +3,7 @@
 #include "common/io.h"
 #include "common/stdlib.h"
 #include "monitor/monitor.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "task/scheduler.h"
 #include "interrupt/interrupt.h"
 #include "utils/debug.h"
@@ -22,7 +22,7 @@ static buffer_queue_t queue;
 
 static linked_list_t waiting_tasks;
 
-static spinlock_t keyboard_lock;
+static yieldlock_t keyboard_lock;
 
 static int next_index(int index) {
   return (index + 1) % KEYBOARD_BUF_SIZE;
@@ -63,7 +63,7 @@ static int32 read_keyboard_char_impl() {
 }
 
 int32 read_keyboard_char() {
-  spinlock_lock(&keyboard_lock);
+  yieldlock_lock(&keyboard_lock);
   int32 c;
   while (1) {
     c = read_keyboard_char_impl();
@@ -73,12 +73,12 @@ int32 read_keyboard_char() {
     //monitor_printf("keyboard waiting thread %u\n", get_crt_thread()->id);
     linked_list_append(&waiting_tasks, get_crt_thread_node());
     schedule_mark_thread_block();
-    spinlock_unlock(&keyboard_lock);
+    yieldlock_unlock(&keyboard_lock);
     schedule_thread_yield();
 
-    spinlock_lock(&keyboard_lock);
+    yieldlock_lock(&keyboard_lock);
   }
-  spinlock_unlock(&keyboard_lock);
+  yieldlock_unlock(&keyboard_lock);
   return c;
 }
 
@@ -88,11 +88,11 @@ static void keyboard_interrupt_handler() {
   // Disable interrupts because this section of code is not reentrant.
   disable_interrupt();
 
-  spinlock_lock(&keyboard_lock);
+  yieldlock_lock(&keyboard_lock);
   enqueue(scancode);
   linked_list_t waiting_tasks_get;
   linked_list_move(&waiting_tasks_get, &waiting_tasks);
-  spinlock_unlock(&keyboard_lock);
+  yieldlock_unlock(&keyboard_lock);
 
   enable_interrupt();
 
@@ -113,7 +113,7 @@ static void keyboard_interrupt_handler() {
 }
 
 void init_keyboard() {
-  spinlock_init(&keyboard_lock);
+  yieldlock_init(&keyboard_lock);
   linked_list_init(&waiting_tasks);
 
   queue.head = 0;

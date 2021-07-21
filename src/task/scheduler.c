@@ -8,7 +8,7 @@
 #include "mem/gdt.h"
 #include "mem/kheap.h"
 #include "mem/paging.h"
-#include "sync/spinlock.h"
+#include "sync/yieldlock.h"
 #include "sync/cond_var.h"
 #include "utils/linked_list.h"
 #include "utils/hash_table.h"
@@ -27,22 +27,22 @@ static thread_node_t* crt_thread_node = nullptr;
 
 // processes map
 static hash_table_t processes_map;
-static spinlock_t processes_map_lock;
+static yieldlock_t processes_map_lock;
 
 // dead tasks and processes waiting for clean
 static linked_list_t dead_tasks;
 static linked_list_t dead_processes;
-static spinlock_t dead_resource_lock;
+static yieldlock_t dead_resource_lock;
 static cond_var_t dead_resource_cv;
 
 // threads map
 static hash_table_t threads_map;
-static spinlock_t threads_map_lock;
+static yieldlock_t threads_map_lock;
 
 // ready task queue
 static linked_list_t ready_tasks;
 static linked_list_t ready_tasks_candidates;
-static spinlock_t ready_tasks_candidates_lock;
+static yieldlock_t ready_tasks_candidates_lock;
 
 static bool main_thread_in_ready_queue = false;
 
@@ -64,17 +64,17 @@ void init_scheduler() {
 
   linked_list_init(&ready_tasks);
   linked_list_init(&ready_tasks_candidates);
-  spinlock_init(&ready_tasks_candidates_lock);
+  yieldlock_init(&ready_tasks_candidates_lock);
 
   hash_table_init(&processes_map);
-  spinlock_init(&processes_map_lock);
+  yieldlock_init(&processes_map_lock);
 
   hash_table_init(&threads_map);
-  spinlock_init(&threads_map_lock);
+  yieldlock_init(&threads_map_lock);
 
   linked_list_init(&dead_tasks);
   linked_list_init(&dead_processes);
-  spinlock_init(&dead_resource_lock);
+  yieldlock_init(&dead_resource_lock);
   cond_var_init(&dead_resource_cv);
 
   // Create process 0: kernel main process (cpu idle)
@@ -128,7 +128,7 @@ static void kernel_clean_thread() {
     linked_list_t dead_processes_receiver;
     linked_list_move(&dead_tasks_receiver, &dead_tasks);
     linked_list_move(&dead_processes_receiver, &dead_processes);
-    spinlock_unlock(&dead_resource_lock);
+    yieldlock_unlock(&dead_resource_lock);
 
     if (dead_tasks_receiver.size > 0) {
       // Clean dead task struct.
@@ -201,23 +201,23 @@ bool is_kernel_main_thread() {
 }
 
 void add_new_process(pcb_t* process) {
-  spinlock_lock(&processes_map_lock);
+  yieldlock_lock(&processes_map_lock);
   hash_table_put(&processes_map, process->id, process);
-  spinlock_unlock(&processes_map_lock);
+  yieldlock_unlock(&processes_map_lock);
 }
 
 void add_dead_process(pcb_t* process) {
-  spinlock_lock(&dead_resource_lock);
+  yieldlock_lock(&dead_resource_lock);
   linked_list_append_ele(&dead_processes, process);
   cond_var_notify(&dead_resource_cv);
-  spinlock_unlock(&dead_resource_lock);
+  yieldlock_unlock(&dead_resource_lock);
 }
 
 void add_dead_task(tcb_t* thread) {
-  spinlock_lock(&dead_resource_lock);
+  yieldlock_lock(&dead_resource_lock);
   linked_list_append_ele(&dead_tasks, thread);
   cond_var_notify(&dead_resource_cv);
-  spinlock_unlock(&dead_resource_lock);
+  yieldlock_unlock(&dead_resource_lock);
 }
 
 static void process_switch(pcb_t* process) {
@@ -228,12 +228,12 @@ static void process_switch(pcb_t* process) {
 }
 
 static void merge_ready_tasks() {
-  if (!spinlock_trylock(&ready_tasks_candidates_lock)) {
+  if (!yieldlock_trylock(&ready_tasks_candidates_lock)) {
     return;
   }
 
   linked_list_concate(&ready_tasks, &ready_tasks_candidates);
-  spinlock_unlock(&ready_tasks_candidates_lock);
+  yieldlock_unlock(&ready_tasks_candidates_lock);
 }
 
 // Note: interrupt must be DISABLED before entering this function.
@@ -297,21 +297,21 @@ void add_thread_to_schedule(tcb_t* thread) {
 }
 
 void add_thread_node_to_schedule(thread_node_t* thread_node) {
-  spinlock_lock(&ready_tasks_candidates_lock);
+  yieldlock_lock(&ready_tasks_candidates_lock);
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   if (thread->status != TASK_DEAD) {
     thread->status = TASK_READY;
   }
   linked_list_append(&ready_tasks_candidates, thread_node);
-  spinlock_unlock(&ready_tasks_candidates_lock);
+  yieldlock_unlock(&ready_tasks_candidates_lock);
 }
 
 void add_thread_node_to_schedule_head(thread_node_t* thread_node) {
-  spinlock_lock(&ready_tasks_candidates_lock);
+  yieldlock_lock(&ready_tasks_candidates_lock);
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   thread->status = TASK_READY;
   linked_list_insert_to_head(&ready_tasks_candidates, thread_node);
-  spinlock_unlock(&ready_tasks_candidates_lock);
+  yieldlock_unlock(&ready_tasks_candidates_lock);
 }
 
 void schedule_thread_yield() {

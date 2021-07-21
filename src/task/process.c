@@ -58,9 +58,9 @@ pcb_t* create_process(char* name, uint8 is_kernel_process) {
   process->waiting_thread_node = nullptr;
 
   process->page_dir = clone_crt_page_dir();
-  spinlock_init(&process->page_dir_lock);
+  yieldlock_init(&process->page_dir_lock);
 
-  spinlock_init(&process->lock);
+  yieldlock_init(&process->lock);
 
   add_new_process(process);
   return process;
@@ -80,12 +80,12 @@ tcb_t* create_new_user_thread(
 
   // Allocate a user space stack for this thread.
   uint32 stack_index;
-  spinlock_lock(&process->lock);
+  yieldlock_lock(&process->lock);
   if (!bitmap_allocate_first_free(&process->user_thread_stack_indexes, &stack_index)) {
-    spinlock_unlock(&process->lock);
+    yieldlock_unlock(&process->lock);
     return nullptr;
   }
-  spinlock_unlock(&process->lock);
+  yieldlock_unlock(&process->lock);
 
   thread->user_stack_index = stack_index;
   uint32 thread_stack_top = USER_STACK_TOP - stack_index * USER_STACK_SIZE;
@@ -99,13 +99,13 @@ tcb_t* create_new_user_thread(
 
 void add_process_thread(pcb_t* process, tcb_t* thread) {
   thread->process = process;
-  spinlock_lock(&process->lock);
+  yieldlock_lock(&process->lock);
   hash_table_put(&process->threads, thread->id, thread);
-  spinlock_unlock(&process->lock);
+  yieldlock_unlock(&process->lock);
 }
 
 void remove_process_thread(pcb_t* process, tcb_t* thread) {
-  spinlock_lock(&process->lock);
+  yieldlock_lock(&process->lock);
   //monitor_printf("remove process %d thread %d\n", process->id, thread->id);
   tcb_t* removed_thread = hash_table_remove(&process->threads, thread->id);
   ASSERT(removed_thread == thread);
@@ -114,13 +114,13 @@ void remove_process_thread(pcb_t* process, tcb_t* thread) {
     //monitor_printf("thread %d release user stack %d\n", thread->id, thread->user_stack_index);
     bitmap_clear_bit(&process->user_thread_stack_indexes, thread->user_stack_index);
   }
-  spinlock_unlock(&process->lock);
+  yieldlock_unlock(&process->lock);
 }
 
 void add_child_process(pcb_t* parent, pcb_t* child) {
-  spinlock_lock(&parent->lock);
+  yieldlock_lock(&parent->lock);
   hash_table_put(&parent->children_processes, child->id, child);
-  spinlock_unlock(&parent->lock);
+  yieldlock_unlock(&parent->lock);
 }
 
 static void release_user_space_pages() {
@@ -184,12 +184,12 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
 
   // TODO: remove destroyed threads from schedule task queues.
 
-  spinlock_lock(&process->lock);
+  yieldlock_lock(&process->lock);
   hash_table_init(threads);
   hash_table_put(threads, keep_thread->id, crt_thread);
   // Release all user stacks.
   bitmap_clear(&process->user_thread_stack_indexes);
-  spinlock_unlock(&process->lock);
+  yieldlock_unlock(&process->lock);
 
   // Copy path and argv[] to local since we will release all user pages of this process later.
   char** args = copy_str_array(argc, argv);
@@ -227,10 +227,10 @@ int32 process_wait(uint32 pid, uint32* status) {
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   pcb_t* process = thread->process;
 
-  spinlock_lock(&process->lock);
+  yieldlock_lock(&process->lock);
 
   if (pid > 0 && hash_table_get(&process->children_processes, pid) == nullptr) {
-    spinlock_unlock(&process->lock);
+    yieldlock_unlock(&process->lock);
     return -1;
   }
 
@@ -258,10 +258,10 @@ int32 process_wait(uint32 pid, uint32* status) {
 
     process->waiting_thread_node = thread_node;
     schedule_mark_thread_block();
-    spinlock_unlock(&process->lock);
+    yieldlock_unlock(&process->lock);
     schedule_thread_yield();
 
-    spinlock_lock(&process->lock);
+    yieldlock_lock(&process->lock);
   }
 
   // Reap child exit code and release pcb struct.
@@ -269,7 +269,7 @@ int32 process_wait(uint32 pid, uint32* status) {
     *status = child->exit_code;
   }
 
-  spinlock_unlock(&process->lock);
+  yieldlock_unlock(&process->lock);
 
   // Add child process to dead list
   add_dead_process(child);
@@ -292,11 +292,11 @@ void process_exit(int32 exit_code) {
   //  - Hand over all remaining children to init process;
   //  - Set this process exit info;
   //  - Destroy all other resources;
-  spinlock_lock(&process->lock);
+  yieldlock_lock(&process->lock);
 
   // TODO: If multi threads are running on this process, kill them.
   if (process->threads.size > 1) {
-    spinlock_unlock(&process->lock);
+    yieldlock_unlock(&process->lock);
     return;
   }
 
@@ -312,17 +312,17 @@ void process_exit(int32 exit_code) {
 
   // Thread will use kernel page table after this line.
   thread->process = nullptr;
-  spinlock_unlock(&process->lock);
+  yieldlock_unlock(&process->lock);
 
   // Add to parent's exit_children_processes, and maybe wake up parent.
-  spinlock_lock(&parent->lock);
+  yieldlock_lock(&parent->lock);
   hash_table_put(&parent->exit_children_processes, process->id, process);
   // Notify parent, if it is waiting for this child, or waiting for any child.
   if (parent->waiting_child_pid == process->id || parent->waiting_child_pid == parent->id) {
     //monitor_printf("wake up parent %d\n", ((tcb_t*)(parent->waiting_thread_node->ptr))->id);
     add_thread_node_to_schedule(parent->waiting_thread_node);
   }
-  spinlock_unlock(&parent->lock);
+  yieldlock_unlock(&parent->lock);
 
   schedule_thread_exit();
 }
@@ -355,23 +355,23 @@ void destroy_process(pcb_t* process) {
 
 //   pcb_t* child = hash_table_get(&process->children_processes, pid);
 //   ASSERT(child != nullptr);
-//   spinlock_lock(&child->lock);
+//   yieldlock_lock(&child->lock);
 //   while (1) {
 //     if (child->status == PROCESS_EXIT || child->status == PROCESS_EXIT_ZOMBIE) {
 //       break;
 //     }
 //     child->waiting_parent = thread_node;
 //     schedule_mark_thread_block();
-//     spinlock_unlock(&child->lock);
+//     yieldlock_unlock(&child->lock);
 //     schedule_thread_yield();
 
-//     spinlock_lock(&child->lock);
+//     yieldlock_lock(&child->lock);
 //   }
 //   // Reap child exit code and release pcb struct.
 //   if (status != nullptr) {
 //     *status = child->exit_code;
 //   }
-//   spinlock_unlock(&child->lock);
+//   yieldlock_unlock(&child->lock);
 
 //   // Add child process to dead list
 //   add_dead_process(child);
@@ -391,10 +391,10 @@ void destroy_process(pcb_t* process) {
 //   // TODO: hand over children processes to kernel main.
 
 //   // Set process exit info, and wake up waiting parent if exists.
-//   spinlock_lock(&process->lock);
+//   yieldlock_lock(&process->lock);
 //   if (process->threads.size > 1) {
 //     // TODO: If multi threads are running on this process, mark them TAKS_DEAD.
-//     spinlock_unlock(&process->lock);
+//     yieldlock_unlock(&process->lock);
 //     return;
 //   }
 
@@ -406,7 +406,7 @@ void destroy_process(pcb_t* process) {
 //   } else {
 //     //process->status = PROCESS_EXIT_ZOMBIE;
 //   }
-//   spinlock_unlock(&process->lock);
+//   yieldlock_unlock(&process->lock);
 
 //   schedule_thread_exit();
 // }

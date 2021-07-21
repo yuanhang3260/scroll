@@ -13,7 +13,7 @@ void id_pool_init(id_pool_t* this, uint32 size, uint32 max_size) {
   this->expand_size = size;
   this->max_size = max_size;
   bitmap_init(&this->id_map, nullptr, this->size);
-  spinlock_init(&this->lock);
+  yieldlock_init(&this->lock);
 }
 
 bool id_pool_set_id(id_pool_t* this, uint32 id) {
@@ -21,20 +21,20 @@ bool id_pool_set_id(id_pool_t* this, uint32 id) {
 }
 
 bool id_pool_allocate_id(id_pool_t* this, uint32* id) {
-  spinlock_lock(&this->lock);
+  yieldlock_lock(&this->lock);
   if (!bitmap_allocate_first_free(&this->id_map, id)) {
     if (this->size == this->max_size) {
-      spinlock_unlock(&this->lock);
+      yieldlock_unlock(&this->lock);
       return -1;
     } else {
       if (!expand(this)) {
         return false;
       }
-      spinlock_unlock(&this->lock);
+      yieldlock_unlock(&this->lock);
       return bitmap_allocate_first_free(&this->id_map, id);
     }
   }
-  spinlock_unlock(&this->lock);
+  yieldlock_unlock(&this->lock);
   return true;
 }
 
