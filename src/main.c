@@ -7,7 +7,7 @@
 #include "task/thread.h"
 #include "task/process.h"
 #include "task/scheduler.h"
-#include "fs/fs.h"
+#include "fs/vfs.h"
 #include "driver/hard_disk.h"
 #include "driver/keyboard.h"
 #include "utils/debug.h"

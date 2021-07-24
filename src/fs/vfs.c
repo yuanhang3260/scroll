@@ -1,4 +1,4 @@
-#include "fs/fs.h"
+#include "fs/vfs.h"
 #include "fs/naive_fs.h"
 
 // ***************************** root fs APIs *********************************

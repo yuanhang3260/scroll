@@ -4,7 +4,7 @@
 #include "mem/paging.h"
 #include "mem/kheap.h"
 #include "task/thread.h"
-#include "fs/fs.h"
+#include "fs/vfs.h"
 #include "fs/file.h"
 #include "driver/keyboard.h"
 #include "task/process.h"

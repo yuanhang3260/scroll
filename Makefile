@@ -46,7 +46,7 @@ OBJS_C = \
 	$(OBJ_DIR)/sync/mutex.o \
 	$(OBJ_DIR)/sync/cond_var.o \
 	$(OBJ_DIR)/fs/disk_io.o \
-	$(OBJ_DIR)/fs/fs.o \
+	$(OBJ_DIR)/fs/vfs.o \
 	$(OBJ_DIR)/fs/file.o \
 	$(OBJ_DIR)/fs/naive_fs.o \
 	$(OBJ_DIR)/elf/elf.o \

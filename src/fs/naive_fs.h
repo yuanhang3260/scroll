@@ -2,7 +2,7 @@
 #define FS_NAIVE_FS_H
 
 #include "common/common.h"
-#include "fs/fs.h"
+#include "fs/vfs.h"
 
 fs_t* get_naive_fs();
 

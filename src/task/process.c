@@ -6,7 +6,7 @@
 #include "mem/kheap.h"
 #include "mem/paging.h"
 #include "fs/file.h"
-#include "fs/fs.h"
+#include "fs/vfs.h"
 #include "elf/elf.h"
 #include "utils/string.h"
 #include "utils/debug.h"
