@@ -1,21 +1,3 @@
-/**
- * The 15-410 reference kernel keyboard handling code.
- *
- * @author Steve Muckle <smuckle@andrew.cmu.edu>
- *
- * @author Edited by zra for the 2003-2004 season.
- *
- * @author Edited by mpa for spring 2004
- *
- * @author Rewritten by nwf for spring 2007.
- *
- * Functions for turning keyboard scancodes
- * into chars.
- *
- * Notice that we use Scancode Set 1
- */
-/*@{*/
-
 #include "driver/keyhelp.h"
 
 /**
