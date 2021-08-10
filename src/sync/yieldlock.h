@@ -8,6 +8,8 @@
 
 #define SINGLE_PROCESSOR
 
+// yieldlock gives up CPU when it cannot get lock.
+// Since a thread 'yield' action is involved, it apparently can NOT be used in interrupt context.
 typedef struct yieldlock {
   volatile uint32 hold;
 } yieldlock_t;

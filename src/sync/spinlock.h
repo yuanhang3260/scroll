@@ -10,12 +10,16 @@
 
 typedef struct spinlock {
   volatile uint32 hold;
+  volatile uint32 interrupt_mask;
 } spinlock_t;
 
 // ****************************************************************************
 void spinlock_init(spinlock_t* splock);
+
 void spinlock_lock(spinlock_t* splock);
-bool spinlock_trylock(spinlock_t* splock);
+void spinlock_lock_irqsave(spinlock_t* splock);
+
 void spinlock_unlock(spinlock_t* splock);
+void spinlock_unlock_irqload(spinlock_t *splock);
 
 #endif
