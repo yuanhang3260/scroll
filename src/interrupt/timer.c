@@ -2,6 +2,7 @@
 #include "monitor/monitor.h"
 #include "interrupt/interrupt.h"
 #include "interrupt/timer.h"
+#include "task/thread.h"
 #include "task/scheduler.h"
 
 uint32 tick = 0;
@@ -16,8 +17,12 @@ static void timer_callback(isr_params_t regs) {
   }
   tick++;
 
-  //monitor_printf("tick = %d, eip = %x\n", tick, regs.eip);
-  maybe_context_switch();
+  // Check current thread time slice.
+  tcb_t* crt_thread = get_crt_thread();
+  crt_thread->ticks++;
+  if (crt_thread->ticks >= crt_thread->priority) {
+    crt_thread->need_reschedule = true;
+  }
 }
 
 void init_timer(uint32 frequency) {

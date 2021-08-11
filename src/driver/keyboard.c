@@ -3,7 +3,7 @@
 #include "common/io.h"
 #include "common/stdlib.h"
 #include "monitor/monitor.h"
-#include "sync/yieldlock.h"
+#include "sync/spinlock.h"
 #include "task/scheduler.h"
 #include "interrupt/interrupt.h"
 #include "utils/debug.h"
@@ -22,7 +22,7 @@ static buffer_queue_t queue;
 
 static linked_list_t waiting_tasks;
 
-static yieldlock_t keyboard_lock;
+static spinlock_t keyboard_lock;
 
 static int next_index(int index) {
   return (index + 1) % KEYBOARD_BUF_SIZE;
@@ -63,7 +63,7 @@ static int32 read_keyboard_char_impl() {
 }
 
 int32 read_keyboard_char() {
-  yieldlock_lock(&keyboard_lock);
+  spinlock_lock_irqsave(&keyboard_lock);
   int32 c;
   while (1) {
     c = read_keyboard_char_impl();
@@ -73,49 +73,44 @@ int32 read_keyboard_char() {
     //monitor_printf("keyboard waiting thread %u\n", get_crt_thread()->id);
     linked_list_append(&waiting_tasks, get_crt_thread_node());
     schedule_mark_thread_block();
-    yieldlock_unlock(&keyboard_lock);
+    spinlock_unlock_irqrestore(&keyboard_lock);
     schedule_thread_yield();
 
-    yieldlock_lock(&keyboard_lock);
+    spinlock_lock_irqsave(&keyboard_lock);
   }
-  yieldlock_unlock(&keyboard_lock);
+  spinlock_unlock_irqrestore(&keyboard_lock);
   return c;
 }
 
 static void keyboard_interrupt_handler() {
   uint8 scancode = inb(0x60);
 
-  // Disable interrupts because this section of code is not reentrant.
-  disable_interrupt();
-
-  yieldlock_lock(&keyboard_lock);
+  spinlock_lock_irqsave(&keyboard_lock);
   enqueue(scancode);
   linked_list_t waiting_tasks_get;
   linked_list_move(&waiting_tasks_get, &waiting_tasks);
-  yieldlock_unlock(&keyboard_lock);
+  spinlock_unlock_irqrestore(&keyboard_lock);
 
-  enable_interrupt();
-
-  thread_node_t* node = waiting_tasks_get.tail;
+  thread_node_t* node = waiting_tasks_get.head;
   while (node != nullptr) {
-    thread_node_t* prev_node = node->prev;
+    thread_node_t* next_node = node->next;
     linked_list_remove(&waiting_tasks_get, node);
     //monitor_printf("wake up keyboard waiting thread %u\n", ((tcb_t*)node->ptr)->id);
     add_thread_node_to_schedule_head(node);
     //break;
-    node = prev_node;
+    node = next_node;
   }
 
-  // To achieve faster keyboard response, do not waste time on kernel main thread.
-  if (is_kernel_main_thread()) {
-    schedule_thread_yield();
-  }
+  // Activate waiting thread immediately.
+  get_crt_thread()->need_reschedule = true;
 }
 
 void init_keyboard() {
-  yieldlock_init(&keyboard_lock);
+  spinlock_init(&keyboard_lock);
   linked_list_init(&waiting_tasks);
 
+  // Explicitly set queue memory to avoid page fault for this part of memory.
+  memset(&queue, 0, sizeof(buffer_queue_t));
   queue.head = 0;
   queue.tail = 0;
   queue.size = 0;

@@ -41,8 +41,6 @@ static yieldlock_t threads_map_lock;
 
 // ready task queue
 static linked_list_t ready_tasks;
-static linked_list_t ready_tasks_candidates;
-static yieldlock_t ready_tasks_candidates_lock;
 
 static bool main_thread_in_ready_queue = false;
 
@@ -63,8 +61,6 @@ void init_scheduler() {
   disable_interrupt();
 
   linked_list_init(&ready_tasks);
-  linked_list_init(&ready_tasks_candidates);
-  yieldlock_init(&ready_tasks_candidates_lock);
 
   hash_table_init(&processes_map);
   yieldlock_init(&processes_map_lock);
@@ -227,15 +223,6 @@ static void process_switch(pcb_t* process) {
   reload_page_directory(&process->page_dir);
 }
 
-static void merge_ready_tasks() {
-  if (!yieldlock_trylock(&ready_tasks_candidates_lock)) {
-    return;
-  }
-
-  linked_list_concate(&ready_tasks, &ready_tasks_candidates);
-  yieldlock_unlock(&ready_tasks_candidates_lock);
-}
-
 // Note: interrupt must be DISABLED before entering this function.
 static void do_context_switch() {
   //monitor_printf("ready_tasks num = %d\n", ready_tasks.size);
@@ -245,11 +232,15 @@ static void do_context_switch() {
   linked_list_remove(&ready_tasks, head);
   tcb_t* next_thread = (tcb_t*)head->ptr;
 
+  // Switch out current running thread.
   if (old_thread->status == TASK_RUNNING && crt_thread_node != main_thread_node) {
     old_thread->status = TASK_READY;
     linked_list_append(&ready_tasks, crt_thread_node);
   }
+  old_thread->ticks = 0;
+  old_thread->need_reschedule = false;
 
+  // Switch in next thread.
   next_thread->status = TASK_RUNNING;
   crt_thread_node = head;
   if (head == main_thread_node) {
@@ -266,19 +257,17 @@ static void do_context_switch() {
   context_switch(old_thread, next_thread);
 }
 
-void maybe_context_switch() {
+void schedule() {
   disable_interrupt();
-  merge_ready_tasks();
 
+  tcb_t* crt_thread = get_crt_thread();
+  if (crt_thread->preempt_count > 0) {
+    // preemption is disabled.
+    return;
+  }
   bool need_context_switch = false;
   if (ready_tasks.size > 0) {
-    tcb_t* crt_thread = get_crt_thread();
-    crt_thread->ticks++;
-    // Current thread has run out of time slice, switch to next ready thread.
-    if (crt_thread->ticks >= crt_thread->priority) {
-      crt_thread->ticks = 0;
-      need_context_switch = true;
-    }
+    need_context_switch = crt_thread->need_reschedule;
   }
 
   if (need_context_switch) {
@@ -297,26 +286,25 @@ void add_thread_to_schedule(tcb_t* thread) {
 }
 
 void add_thread_node_to_schedule(thread_node_t* thread_node) {
-  yieldlock_lock(&ready_tasks_candidates_lock);
+  disable_interrupt();
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   if (thread->status != TASK_DEAD) {
     thread->status = TASK_READY;
   }
-  linked_list_append(&ready_tasks_candidates, thread_node);
-  yieldlock_unlock(&ready_tasks_candidates_lock);
+  linked_list_append(&ready_tasks, thread_node);
+  enable_interrupt();
 }
 
 void add_thread_node_to_schedule_head(thread_node_t* thread_node) {
-  yieldlock_lock(&ready_tasks_candidates_lock);
+  disable_interrupt();
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   thread->status = TASK_READY;
-  linked_list_insert_to_head(&ready_tasks_candidates, thread_node);
-  yieldlock_unlock(&ready_tasks_candidates_lock);
+  linked_list_insert_to_head(&ready_tasks, thread_node);
+  enable_interrupt();
 }
 
 void schedule_thread_yield() {
   disable_interrupt();
-  merge_ready_tasks();
 
   //monitor_printf("thread %d yield\n", get_crt_thread()->id);
 
@@ -326,9 +314,7 @@ void schedule_thread_yield() {
     main_thread_in_ready_queue = 1;
   }
 
-  if (ready_tasks.size > 0) {
-    do_context_switch();
-  }
+  do_context_switch();
 }
 
 void schedule_mark_thread_block() {
@@ -349,7 +335,6 @@ void schedule_thread_exit() {
 
   // Mark this thread TASK_dead.
   disable_interrupt();
-  merge_ready_tasks();
   do_context_switch();
 }
 
@@ -358,4 +343,12 @@ void schedule_thread_exit_normal() {
   //pcb_t* process = thread->process;
   //monitor_printf("process %d thread %d exit\n", process->id, thread->id);
   thread_exit();
+}
+
+void disable_preempt() {
+  get_crt_thread()->preempt_count += 1;
+}
+
+void enable_preempt() {
+  get_crt_thread()->preempt_count -= 1;
 }

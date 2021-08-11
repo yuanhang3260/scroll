@@ -16,6 +16,8 @@ static idt_entry_t idt_entries[256];
 
 static isr_t interrupt_handlers[256];
 
+bool in_irq_context = false;
+
 void init_idt() {
   idt_ptr.limit = sizeof(idt_entry_t) * 256 - 1;
   idt_ptr.base = (uint32)(&idt_entries);
@@ -95,26 +97,33 @@ static void set_idt_gate(uint8 num, uint32 base, uint16 sel, uint8 attrs) {
 void isr_handler(isr_params_t params) {
   uint32 int_num = params.int_num;
 
-  // send an EOI signal to the PICs for external interrupts
-  if (int_num >= 32) {
+  // Send an EOI signal to the PICs for external interrupts
+  if (int_num >= 32 && int_num < SYSCALL_INT_NUM) {
     if (int_num >= 40) {
       // send reset signal to slave
       outb(0xA0, 0x20);
     }
     // send reset signal to master
     outb(0x20, 0x20);
+    in_irq_context = true;
+  } else {
+    // Not a hardware interrupt, enable interrupt as quickly as possible.
+    enable_interrupt();
   }
 
-  // Bottom half of interrupt handler - now interrupt is re-enabled.
-  enable_interrupt();
-
-  // handle interrupt
+  // handle interrupt.
   if (interrupt_handlers[int_num] != 0) {
     isr_t handler = interrupt_handlers[int_num];
     handler(params);
   } else {
     monitor_printf("unknown interrupt: %d\n", int_num);
     PANIC();
+  }
+
+  // Clear in_irq_context flag and enable interrupt.
+  if (in_irq_context) {
+    in_irq_context = false;
+    enable_interrupt();
   }
 }
 
@@ -129,6 +138,10 @@ void enable_interrupt() {
 
 void disable_interrupt() {
   asm volatile ("cli");
+}
+
+bool is_in_irq_context() {
+  return in_irq_context;
 }
 
 void init_pic() {

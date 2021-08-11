@@ -48,6 +48,10 @@ struct task_struct {
   // user stack
   uint32 user_stack;
   int32 user_stack_index;
+  // need reschedule flag
+  bool need_reschedule;
+  // preempt (disable) count
+  uint32 preempt_count;
 };
 typedef struct task_struct tcb_t;
 

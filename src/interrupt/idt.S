@@ -79,6 +79,7 @@ DEFINE_ISR_NOERRCODE   47
 
 ; ************************************* isr_common_stub **************************************** ;
 [EXTERN isr_handler]
+[EXTERN schedule]
 
 ; This is our common ISR stub. It saves the processor state, sets
 ; up for kernel mode segments, calls the C-level isr handler,
@@ -101,6 +102,9 @@ isr_common_stub:
   call isr_handler
 
 interrupt_exit:
+  ; call scheduler
+  call schedule
+
   ; recover the original data segment
   pop eax
   mov ds, ax

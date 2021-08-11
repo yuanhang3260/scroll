@@ -20,6 +20,6 @@ void spinlock_lock(spinlock_t* splock);
 void spinlock_lock_irqsave(spinlock_t* splock);
 
 void spinlock_unlock(spinlock_t* splock);
-void spinlock_unlock_irqload(spinlock_t *splock);
+void spinlock_unlock_irqrestore(spinlock_t *splock);
 
 #endif

@@ -9,40 +9,53 @@ extern uint32 get_eflags();
 
 void spinlock_init(spinlock_t* splock) {
   splock->hold = LOCKED_NO;
+  splock->interrupt_mask = 0;
 }
 
+// This lock should NOT be used for interrupt handling.
 void spinlock_lock(spinlock_t *splock) {
-  while (atomic_exchange(&splock->hold , LOCKED_YES) != LOCKED_NO) {
-    #ifdef SINGLE_PROCESSOR
-      // On uni-processor, pure spinlock should not be used.
-      PANIC();
-    #else
-      // On multi-processor, just loop spinning.
-    #endif
-  }
+  // Disable preempt on local cpu.
+  disable_preempt();
+
+  // For uni-processor, disabling preeempt is sufficient to to ensure mutual exclusive.
+  // For multi-processor however, competing for CAS is still needed.
+  #ifndef SINGLE_PROCESSOR
+  while (atomic_exchange(&splock->hold , LOCKED_YES) != LOCKED_NO) {}
+  #endif
 }
 
-// This spin lock disables interrupt.
+// This lock disables local interrupt, and can be used for interrupt handling.
 void spinlock_lock_irqsave(spinlock_t *splock) {
-  // Save interrupt flag and disable local interrupt.
+  // First disable preempt.
+  disable_preempt();
+
+  // Now disable local interrupt and save interrupt flag bit.
   uint32 eflags = get_eflags();
-  splock->interrupt_mask = (eflags & (1 << 9));
   disable_interrupt();
-  #ifdef SINGLE_PROCESSOR
-    // On uni-processor, disabling interrupt is sufficient to ensure mutual exclusive.
-  #else
-    // On multi-processor, just loop spinning.
-    while (atomic_exchange(&splock->hold , LOCKED_YES) != LOCKED_NO) {}
+  splock->interrupt_mask = (eflags & (1 << 9));
+
+  // For multi-processor, competing for CAS is still needed.
+  #ifndef SINGLE_PROCESSOR
+  while (atomic_exchange(&splock->hold , LOCKED_YES) != LOCKED_NO) {}
   #endif
 }
 
 void spinlock_unlock(spinlock_t *splock) {
+  #ifndef SINGLE_PROCESSOR
   splock->hold = LOCKED_NO;
+  #endif
+
+  enable_preempt();
 }
 
-void spinlock_unlock_irqload(spinlock_t *splock) {
+void spinlock_unlock_irqrestore(spinlock_t *splock) {
+  #ifndef SINGLE_PROCESSOR
   splock->hold = LOCKED_NO;
-  // If interrupt is previously enabled before irqsave lock, re-enable it again.
+  #endif
+
+  enable_preempt();
+
+  // Restore interrupt flag bit - If it's previously enabled before locking, re-enable it again.
   if (splock->interrupt_mask) {
     enable_interrupt();
   }

@@ -129,4 +129,6 @@ void register_interrupt_handler(uint8 n, isr_t handler);
 void enable_interrupt();
 void disable_interrupt();
 
+bool is_in_irq_context();
+
 #endif

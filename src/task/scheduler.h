@@ -19,8 +19,8 @@ void add_thread_to_schedule(struct task_struct* thread);
 void add_thread_node_to_schedule(thread_node_t* thread_node);
 void add_thread_node_to_schedule_head(thread_node_t* thread_node);
 
-// Called by timer interrupt handler.
-void maybe_context_switch();
+// Call scheduler.
+void schedule();
 
 // Yield thread - give up cpu and move current thread to ready queue tail.
 void schedule_thread_yield();
@@ -36,5 +36,8 @@ void add_new_process(pcb_t* process);
 void add_dead_process(pcb_t* process);
 
 bool multi_task_is_enabled();
+
+void disable_preempt();
+void enable_preempt();
 
 #endif
