@@ -85,11 +85,11 @@ int32 read_keyboard_char() {
 static void keyboard_interrupt_handler() {
   uint8 scancode = inb(0x60);
 
-  spinlock_lock_irqsave(&keyboard_lock);
+  spinlock_lock(&keyboard_lock);
   enqueue(scancode);
   linked_list_t waiting_tasks_get;
   linked_list_move(&waiting_tasks_get, &waiting_tasks);
-  spinlock_unlock_irqrestore(&keyboard_lock);
+  spinlock_unlock(&keyboard_lock);
 
   thread_node_t* node = waiting_tasks_get.head;
   while (node != nullptr) {
