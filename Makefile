@@ -80,7 +80,7 @@ prepare: ${SRC_DIR}/*
 	mkdir -p ${OBJ_DIRS}
 
 image: prepare mbr loader kernel disk
-	rm -rf scroll.img && bximage -hd -mode="flat" -size=3 -q scroll.img 1>/dev/null
+	rm -rf scroll.img && bximage -mode="create" -imgmode="flat" -hd="10" -q scroll.img 1>/dev/null
 	dd if=$(BIN_DIR)/mbr of=scroll.img bs=512 count=1 seek=0 conv=notrunc
 	dd if=$(BIN_DIR)/loader of=scroll.img bs=512 count=8 seek=1 conv=notrunc
 	dd if=$(BIN_DIR)/kernel of=scroll.img bs=512 count=2048 seek=9 conv=notrunc
