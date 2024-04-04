@@ -17,7 +17,7 @@ int main(uint32 argc, char* argv[]) {
     //printf("child process %d exit with code %d\n", pid, status);
 
     // TODO: do infinite wait()
-    while (1) {}
+    //while (1) {}
   } else {
     // child: thread-4
     //printf("child process start ok\n");

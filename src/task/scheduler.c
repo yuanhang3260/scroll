@@ -327,6 +327,7 @@ void schedule_thread_exit() {
   tcb_t* thread = get_crt_thread();
   pcb_t* process = thread->process;
   if (process != nullptr) {
+    //printf("removing thread %d from process %d\n", thread->id, process->id);
     remove_process_thread(process, thread);
   }
 

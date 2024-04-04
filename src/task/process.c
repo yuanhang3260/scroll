@@ -282,6 +282,7 @@ int32 process_wait(uint32 pid, uint32* status) {
 //  - If parent is waiting, wake it up and set exit status;
 //  - release all resources (except pcb);
 void process_exit(int32 exit_code) {
+  //monitor_printf("process %d exit\n", process->id);
   thread_node_t* thread_node = get_crt_thread_node();
   tcb_t* thread = (tcb_t*)thread_node->ptr;
   pcb_t* process = thread->process;
@@ -315,14 +316,16 @@ void process_exit(int32 exit_code) {
   yieldlock_unlock(&process->lock);
 
   // Add to parent's exit_children_processes, and maybe wake up parent.
-  yieldlock_lock(&parent->lock);
-  hash_table_put(&parent->exit_children_processes, process->id, process);
-  // Notify parent, if it is waiting for this child, or waiting for any child.
-  if (parent->waiting_child_pid == process->id || parent->waiting_child_pid == parent->id) {
-    //monitor_printf("wake up parent %d\n", ((tcb_t*)(parent->waiting_thread_node->ptr))->id);
-    add_thread_node_to_schedule(parent->waiting_thread_node);
+  if (parent != nullptr) {
+    yieldlock_lock(&parent->lock);
+    hash_table_put(&parent->exit_children_processes, process->id, process);
+    // Notify parent, if it is waiting for this child, or waiting for any child.
+    if (parent->waiting_child_pid == process->id || parent->waiting_child_pid == parent->id) {
+      //monitor_printf("wake up parent %d\n", ((tcb_t*)(parent->waiting_thread_node->ptr))->id);
+      add_thread_node_to_schedule(parent->waiting_thread_node);
+    }
+    yieldlock_unlock(&parent->lock);
   }
-  yieldlock_unlock(&parent->lock);
 
   schedule_thread_exit();
 }

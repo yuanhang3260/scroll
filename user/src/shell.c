@@ -83,6 +83,7 @@ static int32 run_program() {
     // child
     //printf("child process started\n");
     int32 ret = exec(program, args_index, (char**)args);
+    // Actually unreachable.
     exit(ret);
   }
 }
