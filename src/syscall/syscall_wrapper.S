@@ -35,7 +35,7 @@ syscall_entry:
 
 syscall_exit:
   ; recover the original data segment.
-  ; Do NOT use eax because it is the return value of syscall!
+  ; DO NOT use eax because it is the return value of syscall.
   pop ecx
   mov ds, cx
   mov es, cx

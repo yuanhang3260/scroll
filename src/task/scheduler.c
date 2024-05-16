@@ -263,6 +263,7 @@ void schedule() {
   tcb_t* crt_thread = get_crt_thread();
   if (crt_thread->preempt_count > 0) {
     // preemption is disabled.
+    enable_interrupt();
     return;
   }
   bool need_context_switch = false;
@@ -273,10 +274,9 @@ void schedule() {
   if (need_context_switch) {
     //monitor_printf("context_switch yes, %d ready tasks\n", ready_tasks.size);
     do_context_switch();
-  } else {
-    //monitor_println("context_switch no");
-    enable_interrupt();
   }
+
+  enable_interrupt();
 }
 
 void add_thread_to_schedule(tcb_t* thread) {
@@ -315,6 +315,7 @@ void schedule_thread_yield() {
   }
 
   do_context_switch();
+  enable_interrupt();
 }
 
 void schedule_mark_thread_block() {
@@ -331,10 +332,10 @@ void schedule_thread_exit() {
     remove_process_thread(process, thread);
   }
 
+  // Mark this thread TASK_DEAD.
   thread->status = TASK_DEAD;
   add_dead_task(thread);
 
-  // Mark this thread TASK_dead.
   disable_interrupt();
   do_context_switch();
 }

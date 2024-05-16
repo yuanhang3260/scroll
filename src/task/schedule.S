@@ -33,7 +33,7 @@ resume_thread:
   pop ecx
   pop eax
 
-  sti
+  ;sti
   ret
 
 
