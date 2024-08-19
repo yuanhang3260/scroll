@@ -67,7 +67,7 @@ void init_gdt() {
   // tss: 
   write_tss(6, 0x10, 0x0);
 
-  refresh_gdt((uint32)&gdt_ptr);
+  refresh_gdt();
   refresh_tss();
 }
 

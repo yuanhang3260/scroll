@@ -73,6 +73,7 @@ static int32 naive_fs_read_data(char* filename, char* buffer, uint32 start, uint
 }
 
 static int32 naive_fs_write_data(char* filename, char* buffer, uint32 start, uint32 length) {
+  return 0;
 }
 
 void init_naive_fs() {

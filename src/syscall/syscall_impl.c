@@ -14,6 +14,7 @@
 
 static int32 syscall_exit_impl(int32 exit_code) {
   process_exit(exit_code);
+  return 0;
 }
 
 static int32 syscall_fork_impl() {
@@ -104,4 +105,5 @@ int32 syscall_handler(isr_params_t isr_params) {
     default:
       PANIC();
   }
+  return 0;
 }

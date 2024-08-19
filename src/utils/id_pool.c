@@ -18,6 +18,7 @@ void id_pool_init(id_pool_t* this, uint32 size, uint32 max_size) {
 
 bool id_pool_set_id(id_pool_t* this, uint32 id) {
   bitmap_set_bit(&this->id_map, id);
+  return true;
 }
 
 bool id_pool_allocate_id(id_pool_t* this, uint32* id) {
@@ -48,6 +49,7 @@ static bool expand(id_pool_t* this) {
     return false;
   }
   this->size = new_size;
+  return true;
 }
 
 void id_pool_free_id(id_pool_t* this, uint32 id) {

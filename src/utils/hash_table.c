@@ -211,6 +211,7 @@ hash_table_kv_t* hash_table_iterator_next(hash_table_interator_t* iter) {
 
   iter->node = nullptr;
   iter->index++;
+  return nullptr;
 }
 
 

@@ -119,6 +119,7 @@ static void kernel_clean_thread() {
   // thread-1
   while (true) {
     // Wait for dead resource to clean.
+    yieldlock_lock(&dead_resource_lock);
     cond_var_wait(&dead_resource_cv, &dead_resource_lock, has_dead_resource);
     linked_list_t dead_tasks_receiver;
     linked_list_t dead_processes_receiver;

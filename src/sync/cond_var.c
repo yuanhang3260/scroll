@@ -8,7 +8,6 @@ void cond_var_init(cond_var_t* cv) {
 }
 
 void cond_var_wait(cond_var_t* cv, yieldlock_t* lock, cv_predicator_func predicator) {
-  yieldlock_lock(lock);
   while (predicator != nullptr && predicator() == false) {
     // Add current thread to wait queue.
     thread_node_t* thread_node = get_crt_thread_node();
@@ -20,7 +19,6 @@ void cond_var_wait(cond_var_t* cv, yieldlock_t* lock, cv_predicator_func predica
     // Waken up, and test condition predicator again.
     yieldlock_lock(lock);
   }
-  yieldlock_unlock(lock);
 }
 
 void cond_var_notify(cond_var_t* cv) {

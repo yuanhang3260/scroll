@@ -219,6 +219,7 @@ int32 process_exec(char* path, uint32 argc, char* argv[]) {
 
   // Exit current thread. This thread will never return to user mode.
   schedule_thread_exit();
+  return 0;
 }
 
 // Process wait
