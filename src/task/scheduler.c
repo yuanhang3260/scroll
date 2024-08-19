@@ -127,6 +127,8 @@ static void kernel_clean_thread() {
     linked_list_move(&dead_processes_receiver, &dead_processes);
     yieldlock_unlock(&dead_resource_lock);
 
+    //monitor_printf("clean task\n");
+
     if (dead_tasks_receiver.size > 0) {
       // Clean dead task struct.
       while (dead_tasks_receiver.size > 0) {
